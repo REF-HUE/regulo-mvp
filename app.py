@@ -62,12 +62,12 @@ def search():
     else:
         return render_template('results.html', 
                              error=f"Property '{query}' not found in our database. Currently we only have data for 5 test properties.")
+# Auto-create database if it doesn't exist
+if not os.path.exists(DB_PATH):
+    print("📊 Creating database on startup...")
+    from init_db import init_database
+    init_database()
 
 if __name__ == '__main__':
-    # Check if database exists
-    if not os.path.exists(DB_PATH):
-        print("⚠️  Database not found! Run 'python init_db.py' first to create the database.")
-    
     print("\n🚀 Starting Regulo MVP...")
-    print("📍 Open http://localhost:5000 in your browser\n")
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
