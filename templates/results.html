@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Details - Regulo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>REGULO</h1>
+            <a href="/" class="back-link">← New Search</a>
+        </div>
+        
+        {% if error %}
+            <div class="error-box">
+                <h2>❌ {{ error }}</h2>
+                <p>Please try another search or check your input.</p>
+            </div>
+        {% else %}
+            <div class="property-header">
+                <h2>{{ data.address }}</h2>
+                <p class="municipality">{{ data.suburb }}, {{ data.municipality }}</p>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-box zoning">
+                    <h3>📋 Zoning</h3>
+                    <p class="big-text">{{ data.zoning }}</p>
+                </div>
+                
+                <div class="info-box">
+                    <h3>📐 Building Limits</h3>
+                    <p><strong>Coverage:</strong> {{ data.coverage }}</p>
+                    <p><strong>Height:</strong> {{ data.height }}</p>
+                </div>
+                
+                <div class="info-box">
+                    <h3>📏 Setbacks</h3>
+                    <p><strong>Street:</strong> {{ data.setback_street }}</p>
+                    <p><strong>Side:</strong> {{ data.setback_side }}</p>
+                    <p><strong>Rear:</strong> {{ data.setback_rear }}</p>
+                </div>
+                
+                <div class="info-box">
+                    <h3>🚗 Parking Requirements</h3>
+                    <p>{{ data.parking }}</p>
+                </div>
+            </div>
+            
+            <div class="summary-box">
+                <h3>✅ What Can I Build?</h3>
+                <p>{{ data.allowed_uses }}</p>
+            </div>
+            
+            <div class="warning-box">
+                <h3>⚠️ Restrictions & Requirements</h3>
+                <p>{{ data.restrictions }}</p>
+            </div>
+            
+            <div class="disclaimer">
+                <p><strong>⚖️ LEGAL DISCLAIMER:</strong> This information is preliminary guidance only and should not be relied upon as professional advice. Zoning regulations, title deed conditions, and municipal requirements can be complex and subject to change. Always consult a registered architect or professional consultant before proceeding with any design or development work.</p>
+            </div>
+        {% endif %}
+        
+        <div class="footer">
+            <a href="/" class="btn-primary">Search Another Property</a>
+        </div>
+    </div>
+</body>
+</html>
