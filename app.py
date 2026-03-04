@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_file
+from pdf_generator import generate_property_pdf
 import sqlite3
 import os
 
@@ -62,6 +63,57 @@ def search():
     else:
         return render_template('results.html', 
                              error=f"Property '{query}' not found in our database. Currently we only have data for 5 test properties.")
+
+@app.route('/download-pdf/<stand_number>')
+def download_pdf(stand_number):
+    """Generate and download PDF report for a property"""
+    
+    # Get property data from database
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT * FROM properties 
+        WHERE LOWER(stand_number) = LOWER(?)
+    """, (stand_number,))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    if not result:
+        return "Property not found", 404
+    
+    # Convert to dictionary
+    property_data = {
+        'stand_number': result['stand_number'],
+        'address': result['address'],
+        'suburb': result['suburb'],
+        'municipality': result['municipality'],
+        'zoning': result['zoning'],
+        'coverage': result['coverage'],
+        'height': result['height'],
+        'setback_street': result['setback_street'],
+        'setback_side': result['setback_side'],
+        'setback_rear': result['setback_rear'],
+        'parking': result['parking'],
+        'allowed_uses': result['allowed_uses'],
+        'restrictions': result['restrictions']
+    }
+    
+    # Generate PDF
+    pdf_buffer = generate_property_pdf(property_data)
+    
+    # Create filename
+    filename = f"Regulo_Report_{property_data['stand_number']}_{property_data['suburb']}.pdf"
+    
+    # Send PDF as download
+    return send_file(
+        pdf_buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/pdf'
+    )
+
 # Auto-create database if it doesn't exist
 if not os.path.exists(DB_PATH):
     print("📊 Creating database on startup...")
