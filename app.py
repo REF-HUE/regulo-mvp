@@ -12,7 +12,12 @@ from datetime import datetime
 from feasibility import calculate_feasibility
 
 app = Flask(__name__)
-DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zoning.db')
+
+# Use /tmp on Render (writable), local path in development
+if os.environ.get('RENDER'):
+    DATABASE = '/tmp/zoning.db'
+else:
+    DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zoning.db')
 
 
 def get_db():
@@ -74,9 +79,9 @@ def auto_seed():
         """, properties)
 
         conn.commit()
-        print(f"✅ Database seeded — {len(properties)} properties inserted.")
+        print(f"✅ Database seeded — {len(properties)} properties inserted at {DATABASE}")
     else:
-        print(f"✅ Database ready — {existing} properties found.")
+        print(f"✅ Database ready — {existing} properties found at {DATABASE}")
 
     conn.close()
 
