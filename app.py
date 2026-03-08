@@ -22,6 +22,68 @@ def get_db():
 
 
 # ─────────────────────────────────────────────
+# AUTO-SEED ON STARTUP
+# ─────────────────────────────────────────────
+
+def auto_seed():
+    """Create and seed the database if it doesn't exist."""
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS properties (
+        id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+        erf_number                TEXT,
+        suburb                    TEXT,
+        city                      TEXT,
+        zone                      TEXT,
+        land_use                  TEXT,
+        coverage                  TEXT,
+        floor_area_ratio          REAL,
+        height                    TEXT,
+        setbacks                  TEXT,
+        erf_size                  INTEGER,
+        coverage_numeric          REAL,
+        height_numeric            REAL,
+        heritage_overlay          INTEGER DEFAULT 0,
+        environmental_restriction INTEGER DEFAULT 0,
+        notes                     TEXT
+    )
+    """)
+
+    existing = cursor.execute("SELECT COUNT(*) FROM properties").fetchone()[0]
+
+    if existing == 0:
+        properties = [
+            ("3864", "Central", "Gqeberha", "Business 1", "Commercial / Mixed Use", "80%", 3.0, "20m", "Street: 0m | Side: 2m | Rear: 3m", 1200, 80.0, 20, 0, 0, "Prime commercial zoning suitable for retail, office, or mixed-use development."),
+            ("1021", "Summerstrand", "Gqeberha", "Residential 3", "Medium Density Residential", "60%", 1.2, "10m", "Street: 3m | Side: 2m | Rear: 3m", 900, 60.0, 10, 0, 0, "Suitable for townhouse or sectional title development."),
+            ("447", "Walmer", "Gqeberha", "Residential 1", "Single Residential", "50%", 0.8, "8m", "Street: 4.5m | Side: 1.5m | Rear: 3m", 750, 50.0, 8, 1, 0, "Property falls within a heritage protection overlay. Additional approvals may be required."),
+            ("2230", "Newton Park", "Gqeberha", "Business 2", "Commercial / Retail", "75%", 2.5, "15m", "Street: 0m | Side: 2m | Rear: 3m", 1500, 75.0, 15, 0, 0, "High-visibility commercial node suitable for retail or office park development."),
+            ("781", "Humewood", "Gqeberha", "Residential 2", "Low to Medium Density Residential", "60%", 1.0, "10m", "Street: 4m | Side: 1.5m | Rear: 3m", 680, 60.0, 10, 0, 1, "Environmental sensitivity zone — proximity to coastal dune system. EIA may be required."),
+            ("912", "Richmond Hill", "Gqeberha", "Mixed Use", "Mixed Use — Residential / Commercial", "70%", 2.0, "14m", "Street: 2m | Side: 2m | Rear: 3m", 1100, 70.0, 14, 1, 0, "Heritage overlay applies. Mixed-use development potential subject to heritage authority approval."),
+        ]
+
+        cursor.executemany("""
+        INSERT INTO properties (
+            erf_number, suburb, city, zone, land_use, coverage,
+            floor_area_ratio, height, setbacks, erf_size,
+            coverage_numeric, height_numeric,
+            heritage_overlay, environmental_restriction, notes
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, properties)
+
+        conn.commit()
+        print(f"✅ Database seeded — {len(properties)} properties inserted.")
+    else:
+        print(f"✅ Database ready — {existing} properties found.")
+
+    conn.close()
+
+auto_seed()
+
+
+# ─────────────────────────────────────────────
 # HOME
 # ─────────────────────────────────────────────
 
@@ -46,14 +108,12 @@ def search():
         db = get_db()
 
         if suburb:
-            # Try suburb + ERF match first
             prop = db.execute(
                 "SELECT * FROM properties WHERE erf_number = ? AND LOWER(suburb) = LOWER(?)",
                 (erf_number, suburb)
             ).fetchone()
 
             if not prop:
-                # Check if ERF exists at all (just wrong suburb)
                 erf_exists = db.execute(
                     "SELECT suburb FROM properties WHERE erf_number = ?",
                     (erf_number,)
