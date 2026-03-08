@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Details - Regulo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>REGULO</h1>
+            <a href="/" class="back-link">← New Search</a>
+        </div>
+
+        {% if error %}
+            <div class="error-box">
+                <h2>❌ {{ error }}</h2>
+                <p>Please try another search or check your input.</p>
+            </div>
+        {% else %}
+            <div class="property-header">
+                <h2>ERF {{ property.erf_number }}</h2>
+                <p class="municipality">{{ property.suburb }}, Gqeberha</p>
+            </div>
+
+            <!-- Feasibility Score -->
+            <div class="feasibility-box grade-{{ property.feasibility_grade }}">
+                <div class="feasibility-grade">{{ property.feasibility_grade }}</div>
+                <div class="feasibility-info">
+                    <h3>Feasibility Score: {{ property.feasibility_score }}/100 — {{ property.feasibility_grade_text }}</h3>
+                    <ul class="feasibility-notes">
+                        {% for note in property.feasibility_notes %}
+                            <li>{{ note }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Maximum Buildable Floor Area -->
+            {% if property.buildable_area %}
+            <div class="buildable-area-box">
+                <div>
+                    <div class="label">Maximum Buildable Floor Area</div>
+                    <div class="value">{{ property.buildable_area }}</div>
+                    <div class="formula">{{ property.erf_size }} m² × {{ property.floor_area_ratio }} (ERF size × Floor Area Ratio)</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="info-grid">
+                <div class="info-box zoning">
+                    <h3>📋 Zoning</h3>
+                    <p class="big-text">{{ property.zone }}</p>
+                    <p>{{ property.land_use }}</p>
+                </div>
+
+                <div class="info-box">
+                    <h3>📐 Building Limits</h3>
+                    <p><strong>Coverage:</strong> {{ property.coverage }}</p>
+                    <p><strong>Height:</strong> {{ property.height }}</p>
+                    <p><strong>Floor Area Ratio:</strong> {{ property.floor_area_ratio }}</p>
+                </div>
+
+                <div class="info-box">
+                    <h3>📏 Setbacks</h3>
+                    <p>{{ property.setbacks }}</p>
+                </div>
+
+                <div class="info-box">
+                    <h3>📦 Erf Size</h3>
+                    <p class="big-text">{{ property.erf_size }} m²</p>
+                </div>
+            </div>
+
+            {% if property.heritage_overlay or property.environmental_restriction %}
+            <div class="warning-box">
+                <h3>⚠️ Special Conditions</h3>
+                {% if property.heritage_overlay %}
+                    <p>🏛️ <strong>Heritage Overlay:</strong> Additional approvals from SAHRA or the local heritage authority may be required.</p>
+                {% endif %}
+                {% if property.environmental_restriction %}
+                    <p>🌿 <strong>Environmental Restriction:</strong> An Environmental Impact Assessment (EIA) may be required before development.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if property.notes %}
+            <div class="summary-box">
+                <h3>📝 Additional Notes</h3>
+                <p>{{ property.notes }}</p>
+            </div>
+            {% endif %}
+
+            <div class="disclaimer">
+                <p><strong>⚖️ LEGAL DISCLAIMER:</strong> This information is preliminary guidance only and should not be relied upon as professional advice. Zoning regulations, title deed conditions, and municipal requirements can be complex and subject to change. Always consult a registered architect or professional consultant before proceeding with any design or development work.</p>
+            </div>
+
+            <!-- PDF Download Button -->
+            <div class="download-section">
+                <a href="/generate_pdf/{{ property.erf_number }}" class="btn-download">
+                    📄 Download PDF Report
+                </a>
+            </div>
+        {% endif %}
+
+        <div class="footer">
+            <a href="/" class="btn-primary">Search Another Property</a>
+        </div>
+    </div>
+</body>
+</html>

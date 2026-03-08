@@ -15,7 +15,7 @@ def init_database():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Create table
+    # Create table with new fields
     cursor.execute('''
     CREATE TABLE properties (
         stand_number TEXT PRIMARY KEY,
@@ -24,13 +24,17 @@ def init_database():
         municipality TEXT NOT NULL,
         zoning TEXT NOT NULL,
         coverage TEXT NOT NULL,
+        coverage_numeric INTEGER NOT NULL,
         height TEXT NOT NULL,
+        height_numeric INTEGER NOT NULL,
         setback_street TEXT NOT NULL,
         setback_side TEXT NOT NULL,
         setback_rear TEXT NOT NULL,
         parking TEXT NOT NULL,
         allowed_uses TEXT NOT NULL,
-        restrictions TEXT NOT NULL
+        restrictions TEXT NOT NULL,
+        heritage_overlay INTEGER DEFAULT 0,
+        environmental_restriction INTEGER DEFAULT 0
     )
     ''')
     
@@ -45,13 +49,17 @@ def init_database():
             'municipality': 'City of Johannesburg',
             'zoning': 'Residential 1',
             'coverage': 'Maximum 50%',
+            'coverage_numeric': 50,
             'height': '2 storeys (8m maximum)',
+            'height_numeric': 2,
             'setback_street': '5 meters',
             'setback_side': '1.5 meters',
             'setback_rear': '3 meters',
             'parking': '2 bays per dwelling',
             'allowed_uses': 'Single dwelling, Granny flat (with neighbour consent), Home office',
-            'restrictions': '⚠️ Neighbour consent required for second dwelling. Check title deed for servitudes.'
+            'restrictions': '⚠️ Neighbour consent required for second dwelling. Check title deed for servitudes.',
+            'heritage_overlay': 0,
+            'environmental_restriction': 0
         },
         {
             'stand_number': '456',
@@ -60,13 +68,17 @@ def init_database():
             'municipality': 'City of Johannesburg',
             'zoning': 'Residential 2',
             'coverage': 'Maximum 60%',
+            'coverage_numeric': 60,
             'height': '3 storeys (11m maximum)',
+            'height_numeric': 3,
             'setback_street': '4 meters',
             'setback_side': '1.5 meters',
             'setback_rear': '3 meters',
             'parking': '2 bays per dwelling unit',
             'allowed_uses': 'Multiple dwellings (max 3 units), Townhouses, Group housing',
-            'restrictions': '⚠️ Traffic impact assessment required for 3+ units. Municipal approval needed for shared driveways.'
+            'restrictions': '⚠️ Traffic impact assessment required for 3+ units. Municipal approval needed for shared driveways.',
+            'heritage_overlay': 0,
+            'environmental_restriction': 0
         },
         {
             'stand_number': '789',
@@ -75,13 +87,17 @@ def init_database():
             'municipality': 'City of Johannesburg',
             'zoning': 'Business 1',
             'coverage': 'Maximum 70%',
+            'coverage_numeric': 70,
             'height': '4 storeys (15m maximum)',
+            'height_numeric': 4,
             'setback_street': '3 meters',
             'setback_side': '0 meters (if firewall)',
             'setback_rear': '3 meters',
             'parking': '1 bay per 40m² GLA',
             'allowed_uses': 'Offices, Retail, Restaurants, Medical suites',
-            'restrictions': '⚠️ Fire certificate required. Parking must comply with SANS 10400-T. Rezoning may be needed for residential use.'
+            'restrictions': '⚠️ Fire certificate required. Parking must comply with SANS 10400-T. Rezoning may be needed for residential use.',
+            'heritage_overlay': 1,
+            'environmental_restriction': 0
         },
         {
             'stand_number': '234',
@@ -90,13 +106,17 @@ def init_database():
             'municipality': 'City of Johannesburg',
             'zoning': 'Residential 1',
             'coverage': 'Maximum 50%',
+            'coverage_numeric': 50,
             'height': '2 storeys (8m maximum)',
+            'height_numeric': 2,
             'setback_street': '5 meters',
             'setback_side': '1.5 meters',
             'setback_rear': '3 meters',
             'parking': '2 bays per dwelling',
             'allowed_uses': 'Single dwelling, Granny flat (with consent), Home office (max 50m²)',
-            'restrictions': '⚠️ Estate rules may be stricter than municipal zoning. Check with Homeowners Association before design.'
+            'restrictions': '⚠️ Estate rules may be stricter than municipal zoning. Check with Homeowners Association before design.',
+            'heritage_overlay': 0,
+            'environmental_restriction': 0
         },
         {
             'stand_number': '567',
@@ -105,19 +125,23 @@ def init_database():
             'municipality': 'City of Johannesburg',
             'zoning': 'Industrial 1',
             'coverage': 'Maximum 80%',
+            'coverage_numeric': 80,
             'height': '12 meters maximum (single storey warehouse typical)',
+            'height_numeric': 1,
             'setback_street': '6 meters',
             'setback_side': '3 meters',
             'setback_rear': '3 meters',
             'parking': '1 bay per 100m² GLA',
             'allowed_uses': 'Warehousing, Light manufacturing, Logistics, Storage facilities',
-            'restrictions': '⚠️ Environmental impact assessment may be required. Stormwater management plan mandatory. Heavy vehicle access approval needed.'
+            'restrictions': '⚠️ Environmental impact assessment may be required. Stormwater management plan mandatory. Heavy vehicle access approval needed.',
+            'heritage_overlay': 0,
+            'environmental_restriction': 1
         }
     ]
     
     for prop in test_properties:
         cursor.execute('''
-        INSERT INTO properties VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO properties VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             prop['stand_number'],
             prop['address'],
@@ -125,13 +149,17 @@ def init_database():
             prop['municipality'],
             prop['zoning'],
             prop['coverage'],
+            prop['coverage_numeric'],
             prop['height'],
+            prop['height_numeric'],
             prop['setback_street'],
             prop['setback_side'],
             prop['setback_rear'],
             prop['parking'],
             prop['allowed_uses'],
-            prop['restrictions']
+            prop['restrictions'],
+            prop['heritage_overlay'],
+            prop['environmental_restriction']
         ))
         print(f"✅ Added: {prop['address']}, {prop['suburb']}")
     

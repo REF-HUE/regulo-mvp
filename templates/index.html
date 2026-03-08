@@ -3,33 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Regulo - Property Zoning Intelligence</title>
+    <title>Regulo Systems | South African Zoning Intelligence</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>REGULO</h1>
-            <p class="tagline">Know what you can build before you design</p>
-        </div>
-        
-        <div class="search-box">
-            <form action="/search" method="POST">
-                <input 
-                    type="text" 
-                    name="search_query" 
-                    placeholder="Enter stand number or address (e.g., 123, Bryanston, Industrial)"
-                    required
-                    autofocus
-                >
-                <button type="submit">Search Property</button>
-            </form>
-        </div>
-        
-        <div class="info-text">
-            <p>🔍 Currently covering City of Johannesburg properties</p>
-            <p>💡 Try: 123, 456, 789, Bryanston, Sandton, Rosebank, Fourways, Midrand</p>
-        </div>
+    <div class="search-container">
+        <h1>REGULO SYSTEMS</h1>
+
+        <p class="tagline">
+            Zoning intelligence for South African property professionals
+        </p>
+
+        <p class="description">
+            Instant zoning insights, development feasibility scores, and downloadable planning reports.
+        </p>
+
+        {% if error %}
+            <div class="error-box" style="text-align:left; margin-bottom: 20px;">
+                <h2>❌ {{ error }}</h2>
+                <p>Please try another search or check your input.</p>
+            </div>
+        {% endif %}
+
+        <form class="search-form" action="/search" method="POST">
+            <input
+                type="text"
+                name="erf_number"
+                placeholder="Enter ERF number (e.g. 3864)"
+                required
+                autocomplete="off"
+            />
+
+            <input
+                type="text"
+                name="suburb"
+                placeholder="Suburb (optional, e.g. Summerstrand)"
+                autocomplete="off"
+            />
+
+            <button type="submit">Search Property →</button>
+        </form>
+
+        <p class="trust-note">
+            Used for preliminary zoning analysis and feasibility screening.
+        </p>
+
+        <p style="margin-top: 16px; font-size: 12px; color: #aaa;">
+            Currently covering Gqeberha (Port Elizabeth) · More municipalities coming soon
+        </p>
     </div>
 </body>
 </html>
