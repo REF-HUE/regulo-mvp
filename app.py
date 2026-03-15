@@ -31,7 +31,12 @@ def get_db():
 # ─────────────────────────────────────────────
 
 def auto_seed():
-    """Create and seed the database if it doesn't exist."""
+    """
+    Create and seed the database with properties using parameters sourced
+    directly from the NMBM Land Use Scheme V6 (19 January 2023).
+    FAR (Floor Area Ratio) is estimated — NMBM does not publish official FAR values.
+    Always reseeds on startup to ensure latest data is applied.
+    """
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
@@ -52,37 +57,133 @@ def auto_seed():
         height_numeric            REAL,
         heritage_overlay          INTEGER DEFAULT 0,
         environmental_restriction INTEGER DEFAULT 0,
-        notes                     TEXT
+        notes                     TEXT,
+        data_source               TEXT
     )
     """)
 
-    existing = cursor.execute("SELECT COUNT(*) FROM properties").fetchone()[0]
+    # Always reseed to ensure latest data is applied on every deploy
+    cursor.execute("DELETE FROM properties")
 
-    if existing == 0:
-        properties = [
-            ("3864", "Central", "Gqeberha", "Business 1", "Commercial / Mixed Use", "80%", 3.0, "20m", "Street: 0m | Side: 2m | Rear: 3m", 1200, 80.0, 20, 0, 0, "Prime commercial zoning suitable for retail, office, or mixed-use development."),
-            ("1021", "Summerstrand", "Gqeberha", "Residential 3", "Medium Density Residential", "60%", 1.2, "10m", "Street: 3m | Side: 2m | Rear: 3m", 900, 60.0, 10, 0, 0, "Suitable for townhouse or sectional title development."),
-            ("447", "Walmer", "Gqeberha", "Residential 1", "Single Residential", "50%", 0.8, "8m", "Street: 4.5m | Side: 1.5m | Rear: 3m", 750, 50.0, 8, 1, 0, "Property falls within a heritage protection overlay. Additional approvals may be required."),
-            ("2230", "Newton Park", "Gqeberha", "Business 2", "Commercial / Retail", "75%", 2.5, "15m", "Street: 0m | Side: 2m | Rear: 3m", 1500, 75.0, 15, 0, 0, "High-visibility commercial node suitable for retail or office park development."),
-            ("781", "Humewood", "Gqeberha", "Residential 2", "Low to Medium Density Residential", "60%", 1.0, "10m", "Street: 4m | Side: 1.5m | Rear: 3m", 680, 60.0, 10, 0, 1, "Environmental sensitivity zone — proximity to coastal dune system. EIA may be required."),
-            ("912", "Richmond Hill", "Gqeberha", "Mixed Use", "Mixed Use — Residential / Commercial", "70%", 2.0, "14m", "Street: 2m | Side: 2m | Rear: 3m", 1100, 70.0, 14, 1, 0, "Heritage overlay applies. Mixed-use development potential subject to heritage authority approval."),
-        ]
+    # ─────────────────────────────────────────────────────────────────
+    # All development parameters sourced from:
+    # NMBM Land Use Scheme V6, 19 January 2023, Chapter 2
+    #
+    # FAR is ESTIMATED — NMBM uses coverage % + height, not FAR.
+    # Estimates based on coverage × likely storeys for each zone type.
+    # ─────────────────────────────────────────────────────────────────
+    source = "NMBM Land Use Scheme V6 (January 2023)"
 
-        cursor.executemany("""
-        INSERT INTO properties (
-            erf_number, suburb, city, zone, land_use, coverage,
-            floor_area_ratio, height, setbacks, erf_size,
-            coverage_numeric, height_numeric,
-            heritage_overlay, environmental_restriction, notes
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, properties)
+    properties = [
+        # ERF 3864 — Central
+        # Zone: Business Zone 1 (General Business)
+        # Coverage: 100% | Height: No restriction | Setbacks: 0m/0m
+        # FAR: Estimated ~3.0 (100% coverage, high-density commercial)
+        (
+            "3864", "Central", "Gqeberha",
+            "Business Zone 1", "General Business — retail, office, mixed-use",
+            "100%", 3.0,
+            "No restriction (subject to SDF)",
+            "Street: 0m | Side: 0m | Rear: 0m",
+            1200, 100.0, 30,
+            0, 0,
+            "General Business zone permits the widest range of uses including retail, office, residential buildings, and mixed-use development. No height restriction applies unless specified by the Spatial Development Framework.",
+            source
+        ),
 
-        conn.commit()
-        print(f"✅ Database seeded — {len(properties)} properties inserted at {DATABASE}")
-    else:
-        print(f"✅ Database ready — {existing} properties found at {DATABASE}")
+        # ERF 1021 — Summerstrand
+        # Zone: General Residential Zone 2 (Residential Buildings)
+        # Coverage: 75% | Height: No restriction | Setbacks: 5m street, 3m side/rear (>1000m²)
+        # FAR: Estimated ~1.5 (75% coverage, medium-high density residential)
+        (
+            "1021", "Summerstrand", "Gqeberha",
+            "General Residential Zone 2", "Residential Buildings — flats, boarding houses, retirement village",
+            "75%", 1.5,
+            "No restriction (subject to SDF)",
+            "Street: 5m | Side: 3m or half height (max 10m) | Rear: 3m or half height (max 10m)",
+            900, 75.0, 20,
+            0, 0,
+            "High-density residential zone. Suitable for blocks of flats, townhouses, student accommodation and retirement villages. Outdoor living area of at least 10% of erf area required.",
+            source
+        ),
 
+        # ERF 447 — Walmer
+        # Zone: Single Residential Zone 1 (Single Residential A)
+        # Erf > 600m²: Coverage 60% | Height 8.5m | Setbacks: Street 3m, Lateral 1.5m
+        # FAR: Estimated ~0.6 (60% coverage, 2 storeys max)
+        (
+            "447", "Walmer", "Gqeberha",
+            "Single Residential Zone 1", "Single Residential A — dwelling house",
+            "60%", 0.6,
+            "8.5m",
+            "Street: 3m | Side: 1.5m | Rear: 1.5m",
+            750, 60.0, 8.5,
+            1, 0,
+            "Single residential zone for erven larger than 600m². Property falls within a Heritage Overlay — additional approvals from SAHRA or the local heritage authority may be required before any development or alterations.",
+            source
+        ),
+
+        # ERF 2230 — Newton Park
+        # Zone: Business Zone 2 (Limited Business)
+        # Coverage: 70% | Height: No restriction | Setbacks: Street 5m, Side 5m or half height (max 10m)
+        # FAR: Estimated ~1.5 (70% coverage, moderate commercial)
+        (
+            "2230", "Newton Park", "Gqeberha",
+            "Business Zone 2", "Limited Business — retail, trade, neighbourhood commercial",
+            "70%", 1.5,
+            "No restriction (subject to SDF)",
+            "Street: 5m | Side: 5m or half height (max 10m) | Rear: 5m or half height (max 10m)",
+            1500, 70.0, 15,
+            0, 0,
+            "Limited Business zone for low-intensity neighbourhood commercial development. Intended to serve local convenience needs. Scale must be compatible with adjacent residential areas.",
+            source
+        ),
+
+        # ERF 781 — Humewood
+        # Zone: Single Residential Zone 2 (Single Residential B)
+        # Coverage: 80% | Height: 8.5m | Setbacks: 1m if required
+        # FAR: Estimated ~0.8 (80% coverage, 2 storeys)
+        (
+            "781", "Humewood", "Gqeberha",
+            "Single Residential Zone 2", "Single Residential B — dwelling house, shelter",
+            "80%", 0.8,
+            "8.5m",
+            "Street: 1m (if required) | Side: 1m (if required) | Rear: 1m (if required)",
+            680, 80.0, 8.5,
+            0, 1,
+            "Single Residential B zone with environmental restriction — proximity to coastal system. An Environmental Impact Assessment (EIA) may be required before development. Confirm environmental constraints with NMBM before proceeding.",
+            source
+        ),
+
+        # ERF 912 — Richmond Hill
+        # Zone: Business Zone 1 (General Business) — mixed-use precinct
+        # Coverage: 100% | Height: No restriction | Setbacks: 0m/0m
+        # FAR: Estimated ~2.0 (100% coverage, mid-rise mixed use)
+        (
+            "912", "Richmond Hill", "Gqeberha",
+            "Business Zone 1", "General Business — mixed-use residential and commercial",
+            "100%", 2.0,
+            "No restriction (subject to SDF)",
+            "Street: 0m | Side: 0m | Rear: 0m",
+            1100, 100.0, 20,
+            1, 0,
+            "General Business zone in a mixed-use precinct. Heritage overlay applies — Richmond Hill is a heritage-sensitive area. Approvals from the local heritage authority may be required. Mixed residential and commercial development is encouraged.",
+            source
+        ),
+    ]
+
+    cursor.executemany("""
+    INSERT INTO properties (
+        erf_number, suburb, city, zone, land_use, coverage,
+        floor_area_ratio, height, setbacks, erf_size,
+        coverage_numeric, height_numeric,
+        heritage_overlay, environmental_restriction, notes, data_source
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, properties)
+
+    conn.commit()
+    print(f"✅ Database seeded — {len(properties)} properties with official NMBM parameters at {DATABASE}")
     conn.close()
 
 auto_seed()
@@ -235,6 +336,9 @@ def build_pdf(p):
                                  fontSize=10, leading=14)
     note_style  = ParagraphStyle('Note', parent=styles['Normal'],
                                  fontSize=9, leading=13, leftIndent=8)
+    source_style = ParagraphStyle('Source', parent=styles['Normal'],
+                                  fontSize=8, textColor=colors.grey,
+                                  leading=11, spaceBefore=4)
 
     content.append(Paragraph("REGULO SYSTEMS", title_style))
     content.append(Paragraph("Zoning Intelligence Report", sub_style))
@@ -247,15 +351,15 @@ def build_pdf(p):
     content.append(Paragraph("Property Details", section_style))
 
     details = [
-        ["ERF Number",       p.get('erf_number', 'N/A')],
-        ["Suburb",           p.get('suburb', 'N/A')],
-        ["Zone",             p.get('zone', 'N/A')],
-        ["Land Use",         p.get('land_use', 'N/A')],
-        ["Erf Size",         f"{p.get('erf_size', 'N/A')} m²"],
-        ["Max Coverage",     p.get('coverage', 'N/A')],
-        ["Max Height",       p.get('height', 'N/A')],
-        ["Setbacks",         p.get('setbacks', 'N/A')],
-        ["Floor Area Ratio", str(p.get('floor_area_ratio', 'N/A'))],
+        ["ERF Number",            p.get('erf_number', 'N/A')],
+        ["Suburb",                p.get('suburb', 'N/A')],
+        ["Zone",                  p.get('zone', 'N/A')],
+        ["Land Use",              p.get('land_use', 'N/A')],
+        ["Erf Size",              f"{p.get('erf_size', 'N/A')} m²"],
+        ["Max Coverage",          p.get('coverage', 'N/A')],
+        ["Max Height",            p.get('height', 'N/A')],
+        ["Setbacks",              p.get('setbacks', 'N/A')],
+        ["Floor Area Ratio (est.)", str(p.get('floor_area_ratio', 'N/A'))],
     ]
 
     tbl = Table(details, colWidths=[60*mm, 110*mm])
@@ -269,8 +373,14 @@ def build_pdf(p):
     ]))
     content.append(tbl)
 
+    if p.get('data_source'):
+        content.append(Paragraph(
+            f"Source: {p['data_source']}. Floor Area Ratio is estimated — NMBM does not publish official FAR values.",
+            source_style
+        ))
+
     if p.get('buildable_area'):
-        content.append(Paragraph("Maximum Buildable Floor Area", section_style))
+        content.append(Paragraph("Estimated Maximum Buildable Floor Area", section_style))
         far  = p.get('floor_area_ratio', 'N/A')
         size = p.get('erf_size', 'N/A')
         ba_data = [[
@@ -280,9 +390,9 @@ def build_pdf(p):
                                textColor=BLUE, alignment=TA_CENTER)
             ),
             Paragraph(
-                f"<b>ERF size × Floor Area Ratio</b><br/>"
+                f"<b>ERF size × Estimated FAR</b><br/>"
                 f"<font size=9 color='grey'>{size} m² × {far} = {p['buildable_area']}<br/>"
-                f"Maximum gross floor area permissible on this erf.</font>",
+                f"Estimated maximum gross floor area. FAR is not officially published by NMBM.</font>",
                 ParagraphStyle('BAText', parent=styles['Normal'], fontSize=10, leading=15)
             )
         ]]
