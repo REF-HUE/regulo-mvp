@@ -22,6 +22,11 @@
             <div class="property-header">
                 <h2>ERF {{ property.erf_number }}</h2>
                 <p class="municipality">{{ property.suburb }}, Gqeberha</p>
+                {% if property.is_dynamic %}
+                    <p style="font-size: 12px; color: #888; margin-top: 4px;">
+                        ℹ Zone-based analysis — parameters sourced from NMBM LUS V6
+                    </p>
+                {% endif %}
             </div>
 
             <!-- Feasibility Score -->
@@ -41,9 +46,9 @@
             {% if property.buildable_area %}
             <div class="buildable-area-box">
                 <div>
-                    <div class="label">Maximum Buildable Floor Area</div>
+                    <div class="label">MAXIMUM BUILDABLE FLOOR AREA</div>
                     <div class="value">{{ property.buildable_area }}</div>
-                    <div class="formula">{{ property.erf_size }} m² × {{ property.floor_area_ratio }} (ERF size × Floor Area Ratio)</div>
+                    <div class="formula">{{ property.erf_size }} m² × {{ property.floor_area_ratio }} (ERF size × Estimated FAR)</div>
                 </div>
             </div>
             {% endif %}
@@ -59,7 +64,8 @@
                     <h3>📐 Building Limits</h3>
                     <p><strong>Coverage:</strong> {{ property.coverage }}</p>
                     <p><strong>Height:</strong> {{ property.height }}</p>
-                    <p><strong>Floor Area Ratio:</strong> {{ property.floor_area_ratio }}</p>
+                    <p><strong>Floor Area Ratio (est.):</strong> {{ property.floor_area_ratio }}</p>
+                    <p class="source-note">Source: NMBM Land Use Scheme V6, 2023.<br>FAR is estimated — NMBM does not publish official FAR values.</p>
                 </div>
 
                 <div class="info-box">
@@ -98,9 +104,15 @@
 
             <!-- PDF Download Button -->
             <div class="download-section">
-                <a href="/generate_pdf/{{ property.erf_number }}" class="btn-download">
-                    📄 Download PDF Report
-                </a>
+                {% if property.is_dynamic %}
+                    <a href="/generate_pdf_dynamic" class="btn-download">
+                        📄 Download PDF Report
+                    </a>
+                {% else %}
+                    <a href="/generate_pdf/{{ property.erf_number }}" class="btn-download">
+                        📄 Download PDF Report
+                    </a>
+                {% endif %}
             </div>
         {% endif %}
 

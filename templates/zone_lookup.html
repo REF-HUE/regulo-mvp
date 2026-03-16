@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zone Lookup — Regulo Systems</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .lookup-container {
+            max-width: 620px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        .lookup-header {
+            margin-bottom: 32px;
+        }
+
+        .lookup-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+
+        .lookup-header p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .notice-box {
+            background: #f0f4ff;
+            border-left: 4px solid #4361ee;
+            border-radius: 6px;
+            padding: 14px 18px;
+            margin-bottom: 28px;
+        }
+
+        .notice-box p {
+            font-size: 13px;
+            color: #333;
+            margin: 0;
+        }
+
+        .notice-box strong {
+            color: #4361ee;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+        }
+
+        .form-group label .required {
+            color: #e63946;
+            margin-left: 2px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #dde3f0;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #1a1a2e;
+            background: #fff;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4361ee;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            pointer-events: none;
+            font-size: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin-top: 2px;
+            accent-color: #4361ee;
+            flex-shrink: 0;
+        }
+
+        .checkbox-item .checkbox-label {
+            font-size: 13px;
+            color: #444;
+            line-height: 1.5;
+        }
+
+        .checkbox-item .checkbox-label strong {
+            display: block;
+            color: #1a1a2e;
+            font-weight: 600;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: #4361ee;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+
+        .submit-btn:hover {
+            background: #3451d1;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: #4361ee;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .error-box {
+            background: #fff0f0;
+            border-left: 4px solid #e63946;
+            border-radius: 6px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+        }
+
+        .error-box p {
+            font-size: 13px;
+            color: #c0392b;
+            margin: 0;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 24px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="lookup-container">
+        <a href="/" class="back-link">← Back to Search</a>
+
+        <div class="lookup-header">
+            <h1>Zone-Based Lookup</h1>
+            <p>ERF <strong>{{ erf_number }}</strong> is not yet in our verified database. Enter the zoning details from your title deed or NMBM records to generate a full analysis.</p>
+        </div>
+
+        <div class="notice-box">
+            <p>
+                <strong>Where to find your zone:</strong> Check your title deed, the NMBM GIS portal at <em>gis.nmbm.org.za</em>, or ask your architect. The zone is also listed on your municipal rates account.
+            </p>
+        </div>
+
+        {% if error %}
+        <div class="error-box">
+            <p>⚠ {{ error }}</p>
+        </div>
+        {% endif %}
+
+        <form action="/zone-lookup" method="POST">
+            <input type="hidden" name="erf_number" value="{{ erf_number }}">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ERF Number</label>
+                    <input type="text" value="{{ erf_number }}" disabled style="background:#f5f5f5; color:#888;">
+                </div>
+                <div class="form-group">
+                    <label for="suburb">Suburb <span class="required">*</span></label>
+                    <input type="text" id="suburb" name="suburb" value="{{ suburb }}" placeholder="e.g. Newton Park" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="zone">Zoning Category <span class="required">*</span></label>
+                <div class="select-wrapper">
+                    <select id="zone" name="zone" required>
+                        <option value="" disabled selected>Select zone from NMBM Land Use Scheme V6</option>
+                        {% for zone in zones %}
+                        <option value="{{ zone }}">{{ zone }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <p class="hint">Source: NMBM Land Use Scheme Version 6 (January 2023)</p>
+            </div>
+
+            <div class="form-group">
+                <label for="erf_size">Erf Size (m²) <span class="required">*</span></label>
+                <input type="number" id="erf_size" name="erf_size" placeholder="e.g. 800" min="1" required>
+                <p class="hint">Found on your title deed or municipal valuation roll.</p>
+            </div>
+
+            <hr class="divider">
+
+            <div class="form-group">
+                <label>Overlay Zones (if applicable)</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="heritage_overlay" value="1">
+                        <span class="checkbox-label">
+                            <strong>Heritage Overlay</strong>
+                            Property is within a heritage protection area. SAHRA or local authority approval may be required.
+                        </span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="environmental_restriction" value="1">
+                        <span class="checkbox-label">
+                            <strong>Environmental Restriction</strong>
+                            Property is in an environmentally sensitive area. EIA may be required before development.
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn">Generate Zoning Analysis →</button>
+        </form>
+
+        <p style="font-size: 11px; color: #aaa; text-align: center; margin-top: 20px;">
+            Results are based on NMBM Land Use Scheme V6 zone parameters and are for preliminary guidance only.
+        </p>
+    </div>
+</body>
+</html>

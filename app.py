@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, redirect, url_for
+from flask import Flask, render_template, request, send_file, redirect, url_for, session
 import sqlite3
 import io
 import os
@@ -12,6 +12,7 @@ from datetime import datetime
 from feasibility import calculate_feasibility
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'regulo-systems-2025')
 
 # Use /tmp on Render (writable), local path in development
 if os.environ.get('RENDER'):
@@ -27,15 +28,222 @@ def get_db():
 
 
 # ─────────────────────────────────────────────
+# NMBM ZONE DATA
+# Source: NMBM Land Use Scheme V6, 19 January 2023
+# FAR is estimated — NMBM uses coverage % + height, not FAR
+# ─────────────────────────────────────────────
+
+ZONE_DATA = {
+    "Single Residential Zone 1": {
+        "display": "Single Residential Zone 1 (SR1)",
+        "land_use": "Single Residential A — dwelling house, second dwelling",
+        "coverage": "60%",
+        "coverage_numeric": 60.0,
+        "floor_area_ratio": 0.6,
+        "height": "8.5m",
+        "height_numeric": 8.5,
+        "setbacks": "Street: 3m | Side: 1.5m | Rear: 1.5m",
+        "notes": "Primary single residential zone for erven larger than 600m². A second dwelling or outbuilding is permitted subject to conditions. Coverage may increase to 70% for erven ≤ 600m².",
+    },
+    "Single Residential Zone 2": {
+        "display": "Single Residential Zone 2 (SR2)",
+        "land_use": "Single Residential B — dwelling house, shelter",
+        "coverage": "80%",
+        "coverage_numeric": 80.0,
+        "floor_area_ratio": 0.8,
+        "height": "8.5m",
+        "height_numeric": 8.5,
+        "setbacks": "Street: 1m (if required) | Side: 1m (if required) | Rear: 1m (if required)",
+        "notes": "Higher-coverage single residential zone typically applied to smaller erven and denser residential areas. Suitable for dwelling houses and informal structures.",
+    },
+    "General Residential Zone 1": {
+        "display": "General Residential Zone 1 (GR1)",
+        "land_use": "Low Density Residential — dwelling units, group housing",
+        "coverage": "60%",
+        "coverage_numeric": 60.0,
+        "floor_area_ratio": 1.0,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 15.0,
+        "setbacks": "Street: 5m | Side: 3m | Rear: 3m",
+        "notes": "Low-density general residential zone suitable for group housing, cluster developments, and low-rise residential buildings.",
+    },
+    "General Residential Zone 2": {
+        "display": "General Residential Zone 2 (GR2)",
+        "land_use": "Residential Buildings — flats, boarding houses, retirement village",
+        "coverage": "75%",
+        "coverage_numeric": 75.0,
+        "floor_area_ratio": 1.5,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 20.0,
+        "setbacks": "Street: 5m | Side: 3m or half height (max 10m) | Rear: 3m or half height (max 10m)",
+        "notes": "Medium to high-density residential zone. Suitable for blocks of flats, townhouses, student accommodation and retirement villages. Outdoor living area of at least 10% of erf area required.",
+    },
+    "General Residential Zone 3": {
+        "display": "General Residential Zone 3 (GR3)",
+        "land_use": "High Density Residential — residential buildings, flats",
+        "coverage": "75%",
+        "coverage_numeric": 75.0,
+        "floor_area_ratio": 2.0,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 25.0,
+        "setbacks": "Street: 5m | Side: 3m | Rear: 3m",
+        "notes": "High-density residential zone for multi-storey residential buildings. Subject to Spatial Development Framework height guidelines.",
+    },
+    "Business Zone 1": {
+        "display": "Business Zone 1 (BZ1) — General Business",
+        "land_use": "General Business — retail, office, mixed-use, residential",
+        "coverage": "100%",
+        "coverage_numeric": 100.0,
+        "floor_area_ratio": 3.0,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 30.0,
+        "setbacks": "Street: 0m | Side: 0m | Rear: 0m",
+        "notes": "General Business zone permits the widest range of uses including retail, office, residential buildings, and mixed-use development. No height restriction unless specified by the Spatial Development Framework.",
+    },
+    "Business Zone 2": {
+        "display": "Business Zone 2 (BZ2) — Limited Business",
+        "land_use": "Limited Business — retail, trade, neighbourhood commercial",
+        "coverage": "70%",
+        "coverage_numeric": 70.0,
+        "floor_area_ratio": 1.5,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 15.0,
+        "setbacks": "Street: 5m | Side: 5m or half height (max 10m) | Rear: 5m or half height (max 10m)",
+        "notes": "Limited Business zone for low-intensity neighbourhood commercial development. Scale must be compatible with adjacent residential areas.",
+    },
+    "Business Zone 3": {
+        "display": "Business Zone 3 (BZ3) — Local Business",
+        "land_use": "Local Business — corner shops, small offices, service businesses",
+        "coverage": "60%",
+        "coverage_numeric": 60.0,
+        "floor_area_ratio": 1.2,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 10.0,
+        "setbacks": "Street: 5m | Side: 3m | Rear: 3m",
+        "notes": "Local Business zone for small-scale commercial uses serving immediate neighbourhood needs. Typically applied to corner sites within residential areas.",
+    },
+    "Industrial Zone 1": {
+        "display": "Industrial Zone 1 (IZ1) — General Industrial",
+        "land_use": "General Industrial — manufacturing, warehousing, logistics",
+        "coverage": "70%",
+        "coverage_numeric": 70.0,
+        "floor_area_ratio": 1.0,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 15.0,
+        "setbacks": "Street: 6m | Side: 3m | Rear: 3m",
+        "notes": "General Industrial zone for manufacturing, warehousing and logistics operations. Environmental impact assessment may be required for certain uses.",
+    },
+    "Industrial Zone 2": {
+        "display": "Industrial Zone 2 (IZ2) — Limited Industrial",
+        "land_use": "Limited Industrial — light industry, service industries",
+        "coverage": "50%",
+        "coverage_numeric": 50.0,
+        "floor_area_ratio": 0.8,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 12.0,
+        "setbacks": "Street: 6m | Side: 3m | Rear: 3m",
+        "notes": "Limited Industrial zone for light industrial and service industry uses. Must be compatible with surrounding land uses and minimise nuisance impacts.",
+    },
+    "Mixed Use Zone": {
+        "display": "Mixed Use Zone (MU)",
+        "land_use": "Mixed Use — residential and commercial combination",
+        "coverage": "80%",
+        "coverage_numeric": 80.0,
+        "floor_area_ratio": 2.0,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 20.0,
+        "setbacks": "Street: 2m | Side: 2m | Rear: 3m",
+        "notes": "Mixed Use zone allowing a combination of residential and commercial development. Encourages active street frontages and pedestrian-friendly environments.",
+    },
+    "Community Facilities Zone": {
+        "display": "Community Facilities Zone (CF)",
+        "land_use": "Community Facilities — schools, clinics, places of worship, civic uses",
+        "coverage": "60%",
+        "coverage_numeric": 60.0,
+        "floor_area_ratio": 0.8,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 12.0,
+        "setbacks": "Street: 5m | Side: 3m | Rear: 3m",
+        "notes": "Community Facilities zone for public and community-serving uses. Development requires municipal approval and must be compatible with surrounding land uses.",
+    },
+    "Government Zone": {
+        "display": "Government Zone (GOV)",
+        "land_use": "Government — municipal, provincial and national government uses",
+        "coverage": "60%",
+        "coverage_numeric": 60.0,
+        "floor_area_ratio": 1.0,
+        "height": "No restriction (subject to SDF)",
+        "height_numeric": 15.0,
+        "setbacks": "Street: 5m | Side: 3m | Rear: 3m",
+        "notes": "Government Zone reserved for public sector facilities and administration buildings.",
+    },
+    "Open Space Zone 1": {
+        "display": "Open Space Zone 1 (OS1) — Public Open Space",
+        "land_use": "Public Open Space — parks, recreation, public amenity",
+        "coverage": "5%",
+        "coverage_numeric": 5.0,
+        "floor_area_ratio": 0.05,
+        "height": "5m",
+        "height_numeric": 5.0,
+        "setbacks": "Street: 5m | Side: 3m | Rear: 3m",
+        "notes": "Public Open Space zone. Development is severely restricted. Only minor ancillary structures such as ablution facilities or park furniture are permitted.",
+    },
+    "Open Space Zone 2": {
+        "display": "Open Space Zone 2 (OS2) — Private Open Space",
+        "land_use": "Private Open Space — private recreation, sport, amenity",
+        "coverage": "20%",
+        "coverage_numeric": 20.0,
+        "floor_area_ratio": 0.2,
+        "height": "5m",
+        "height_numeric": 5.0,
+        "setbacks": "Street: 3m | Side: 2m | Rear: 2m",
+        "notes": "Private Open Space zone for private recreational facilities. Limited built structures permitted. Rezoning required for any significant development.",
+    },
+    "Agricultural Zone": {
+        "display": "Agricultural Zone (AG)",
+        "land_use": "Agricultural — farming, smallholdings, agricultural industry",
+        "coverage": "5%",
+        "coverage_numeric": 5.0,
+        "floor_area_ratio": 0.1,
+        "height": "10m",
+        "height_numeric": 10.0,
+        "setbacks": "Street: 10m | Side: 5m | Rear: 5m",
+        "notes": "Agricultural Zone for farming and related uses. Subdivision and development are strictly controlled. Rezoning is required for any non-agricultural use.",
+    },
+    "Special Zone": {
+        "display": "Special Zone (SP)",
+        "land_use": "Special — as defined by specific conditions of approval",
+        "coverage": "As per conditions",
+        "coverage_numeric": 50.0,
+        "floor_area_ratio": 1.0,
+        "height": "As per conditions",
+        "height_numeric": 10.0,
+        "setbacks": "As per conditions of approval",
+        "notes": "Special Zone with site-specific development conditions. All parameters are subject to the specific conditions attached to this zone. Consult NMBM for full conditions.",
+    },
+    "Transport Zone": {
+        "display": "Transport Zone (TR)",
+        "land_use": "Transport — roads, rail, airports, transport infrastructure",
+        "coverage": "50%",
+        "coverage_numeric": 50.0,
+        "floor_area_ratio": 0.5,
+        "height": "No restriction",
+        "height_numeric": 10.0,
+        "setbacks": "As determined by transport authority",
+        "notes": "Transport Zone reserved for transport infrastructure and ancillary uses. Development requires approval from the relevant transport authority.",
+    },
+}
+
+
+# ─────────────────────────────────────────────
 # AUTO-SEED ON STARTUP
 # ─────────────────────────────────────────────
 
 def auto_seed():
     """
-    Create and seed the database with properties using parameters sourced
-    directly from the NMBM Land Use Scheme V6 (19 January 2023).
-    FAR (Floor Area Ratio) is estimated — NMBM does not publish official FAR values.
+    Create and seed the database with known properties.
     Always reseeds on startup to ensure latest data is applied.
+    Source: NMBM Land Use Scheme V6, 19 January 2023.
     """
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
@@ -62,111 +270,68 @@ def auto_seed():
     )
     """)
 
-    # Always reseed to ensure latest data is applied on every deploy
     cursor.execute("DELETE FROM properties")
 
-    # ─────────────────────────────────────────────────────────────────
-    # All development parameters sourced from:
-    # NMBM Land Use Scheme V6, 19 January 2023, Chapter 2
-    #
-    # FAR is ESTIMATED — NMBM uses coverage % + height, not FAR.
-    # Estimates based on coverage × likely storeys for each zone type.
-    # ─────────────────────────────────────────────────────────────────
     source = "NMBM Land Use Scheme V6 (January 2023)"
 
     properties = [
-        # ERF 3864 — Central
-        # Zone: Business Zone 1 (General Business)
-        # Coverage: 100% | Height: No restriction | Setbacks: 0m/0m
-        # FAR: Estimated ~3.0 (100% coverage, high-density commercial)
         (
             "3864", "Central", "Gqeberha",
-            "Business Zone 1", "General Business — retail, office, mixed-use",
-            "100%", 3.0,
-            "No restriction (subject to SDF)",
+            "Business Zone 1 (BZ1) — General Business",
+            "General Business — retail, office, mixed-use",
+            "100%", 3.0, "No restriction (subject to SDF)",
             "Street: 0m | Side: 0m | Rear: 0m",
-            1200, 100.0, 30,
-            0, 0,
+            1200, 100.0, 30, 0, 0,
             "General Business zone permits the widest range of uses including retail, office, residential buildings, and mixed-use development. No height restriction applies unless specified by the Spatial Development Framework.",
             source
         ),
-
-        # ERF 1021 — Summerstrand
-        # Zone: General Residential Zone 2 (Residential Buildings)
-        # Coverage: 75% | Height: No restriction | Setbacks: 5m street, 3m side/rear (>1000m²)
-        # FAR: Estimated ~1.5 (75% coverage, medium-high density residential)
         (
             "1021", "Summerstrand", "Gqeberha",
-            "General Residential Zone 2", "Residential Buildings — flats, boarding houses, retirement village",
-            "75%", 1.5,
-            "No restriction (subject to SDF)",
+            "General Residential Zone 2 (GR2)",
+            "Residential Buildings — flats, boarding houses, retirement village",
+            "75%", 1.5, "No restriction (subject to SDF)",
             "Street: 5m | Side: 3m or half height (max 10m) | Rear: 3m or half height (max 10m)",
-            900, 75.0, 20,
-            0, 0,
+            900, 75.0, 20, 0, 0,
             "High-density residential zone. Suitable for blocks of flats, townhouses, student accommodation and retirement villages. Outdoor living area of at least 10% of erf area required.",
             source
         ),
-
-        # ERF 447 — Walmer
-        # Zone: Single Residential Zone 1 (Single Residential A)
-        # Erf > 600m²: Coverage 60% | Height 8.5m | Setbacks: Street 3m, Lateral 1.5m
-        # FAR: Estimated ~0.6 (60% coverage, 2 storeys max)
         (
             "447", "Walmer", "Gqeberha",
-            "Single Residential Zone 1", "Single Residential A — dwelling house",
-            "60%", 0.6,
-            "8.5m",
+            "Single Residential Zone 1 (SR1)",
+            "Single Residential A — dwelling house",
+            "60%", 0.6, "8.5m",
             "Street: 3m | Side: 1.5m | Rear: 1.5m",
-            750, 60.0, 8.5,
-            1, 0,
+            750, 60.0, 8.5, 1, 0,
             "Single residential zone for erven larger than 600m². Property falls within a Heritage Overlay — additional approvals from SAHRA or the local heritage authority may be required before any development or alterations.",
             source
         ),
-
-        # ERF 2230 — Newton Park
-        # Zone: Business Zone 2 (Limited Business)
-        # Coverage: 70% | Height: No restriction | Setbacks: Street 5m, Side 5m or half height (max 10m)
-        # FAR: Estimated ~1.5 (70% coverage, moderate commercial)
         (
             "2230", "Newton Park", "Gqeberha",
-            "Business Zone 2", "Limited Business — retail, trade, neighbourhood commercial",
-            "70%", 1.5,
-            "No restriction (subject to SDF)",
+            "Business Zone 2 (BZ2) — Limited Business",
+            "Limited Business — retail, trade, neighbourhood commercial",
+            "70%", 1.5, "No restriction (subject to SDF)",
             "Street: 5m | Side: 5m or half height (max 10m) | Rear: 5m or half height (max 10m)",
-            1500, 70.0, 15,
-            0, 0,
+            1500, 70.0, 15, 0, 0,
             "Limited Business zone for low-intensity neighbourhood commercial development. Intended to serve local convenience needs. Scale must be compatible with adjacent residential areas.",
             source
         ),
-
-        # ERF 781 — Humewood
-        # Zone: Single Residential Zone 2 (Single Residential B)
-        # Coverage: 80% | Height: 8.5m | Setbacks: 1m if required
-        # FAR: Estimated ~0.8 (80% coverage, 2 storeys)
         (
             "781", "Humewood", "Gqeberha",
-            "Single Residential Zone 2", "Single Residential B — dwelling house, shelter",
-            "80%", 0.8,
-            "8.5m",
+            "Single Residential Zone 2 (SR2)",
+            "Single Residential B — dwelling house, shelter",
+            "80%", 0.8, "8.5m",
             "Street: 1m (if required) | Side: 1m (if required) | Rear: 1m (if required)",
-            680, 80.0, 8.5,
-            0, 1,
+            680, 80.0, 8.5, 0, 1,
             "Single Residential B zone with environmental restriction — proximity to coastal system. An Environmental Impact Assessment (EIA) may be required before development. Confirm environmental constraints with NMBM before proceeding.",
             source
         ),
-
-        # ERF 912 — Richmond Hill
-        # Zone: Business Zone 1 (General Business) — mixed-use precinct
-        # Coverage: 100% | Height: No restriction | Setbacks: 0m/0m
-        # FAR: Estimated ~2.0 (100% coverage, mid-rise mixed use)
         (
             "912", "Richmond Hill", "Gqeberha",
-            "Business Zone 1", "General Business — mixed-use residential and commercial",
-            "100%", 2.0,
-            "No restriction (subject to SDF)",
+            "Business Zone 1 (BZ1) — General Business",
+            "General Business — mixed-use residential and commercial",
+            "100%", 2.0, "No restriction (subject to SDF)",
             "Street: 0m | Side: 0m | Rear: 0m",
-            1100, 100.0, 20,
-            1, 0,
+            1100, 100.0, 20, 1, 0,
             "General Business zone in a mixed-use precinct. Heritage overlay applies — Richmond Hill is a heritage-sensitive area. Approvals from the local heritage authority may be required. Mixed residential and commercial development is encouraged.",
             source
         ),
@@ -183,7 +348,7 @@ def auto_seed():
     """, properties)
 
     conn.commit()
-    print(f"✅ Database seeded — {len(properties)} properties with official NMBM parameters at {DATABASE}")
+    print(f"✅ Database seeded — {len(properties)} properties at {DATABASE}")
     conn.close()
 
 auto_seed()
@@ -224,7 +389,6 @@ def search():
                     "SELECT suburb FROM properties WHERE erf_number = ?",
                     (erf_number,)
                 ).fetchone()
-
                 db.close()
 
                 if erf_exists:
@@ -234,9 +398,8 @@ def search():
                                                  f"It is registered in {actual_suburb}. "
                                                  f"Try leaving the suburb blank, or enter \"{actual_suburb}\".")
                 else:
-                    return render_template('index.html',
-                                           error=f"ERF {erf_number} was not found in our database. "
-                                                 f"Please check the number and try again.")
+                    # Redirect to zone lookup for unknown ERFs
+                    return redirect(url_for('zone_lookup', erf_number=erf_number, suburb=suburb))
         else:
             prop = db.execute(
                 "SELECT * FROM properties WHERE erf_number = ?",
@@ -245,11 +408,11 @@ def search():
             db.close()
 
             if not prop:
-                return render_template('index.html',
-                                       error=f"ERF {erf_number} was not found in our database. "
-                                             f"Please check the number and try again.")
+                # Redirect to zone lookup for unknown ERFs
+                return redirect(url_for('zone_lookup', erf_number=erf_number))
 
         property_data = dict(prop)
+        property_data['is_dynamic'] = False
 
         score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
         property_data['feasibility_score']      = score
@@ -264,7 +427,90 @@ def search():
 
 
 # ─────────────────────────────────────────────
-# PDF REPORT
+# ZONE LOOKUP — for ERFs not in database
+# ─────────────────────────────────────────────
+
+@app.route('/zone-lookup', methods=['GET', 'POST'])
+def zone_lookup():
+    zones = sorted(ZONE_DATA.keys())
+
+    if request.method == 'GET':
+        erf_number = request.args.get('erf_number', '')
+        suburb     = request.args.get('suburb', '')
+        return render_template('zone_lookup.html',
+                               erf_number=erf_number,
+                               suburb=suburb,
+                               zones=zones)
+
+    # POST — generate result from zone data
+    erf_number  = request.form.get('erf_number', '').strip() or 'Unknown'
+    suburb      = request.form.get('suburb', 'Gqeberha').strip()
+    zone_key    = request.form.get('zone', '').strip()
+    erf_size_raw = request.form.get('erf_size', '').strip()
+    heritage    = 1 if request.form.get('heritage_overlay') else 0
+    enviro      = 1 if request.form.get('environmental_restriction') else 0
+
+    if not zone_key or not erf_size_raw:
+        return render_template('zone_lookup.html',
+                               erf_number=erf_number,
+                               suburb=suburb,
+                               zones=zones,
+                               error="Please select a zone and enter the ERF size.")
+
+    try:
+        erf_size = int(erf_size_raw)
+        if erf_size <= 0:
+            raise ValueError
+    except ValueError:
+        return render_template('zone_lookup.html',
+                               erf_number=erf_number,
+                               suburb=suburb,
+                               zones=zones,
+                               error="ERF size must be a positive number in m².")
+
+    zone = ZONE_DATA.get(zone_key)
+    if not zone:
+        return render_template('zone_lookup.html',
+                               erf_number=erf_number,
+                               suburb=suburb,
+                               zones=zones,
+                               error="Invalid zone selected. Please choose from the list.")
+
+    property_data = {
+        'erf_number':               erf_number,
+        'suburb':                   suburb,
+        'city':                     'Gqeberha',
+        'zone':                     zone['display'],
+        'land_use':                 zone['land_use'],
+        'coverage':                 zone['coverage'],
+        'coverage_numeric':         zone['coverage_numeric'],
+        'floor_area_ratio':         zone['floor_area_ratio'],
+        'height':                   zone['height'],
+        'height_numeric':           zone['height_numeric'],
+        'setbacks':                 zone['setbacks'],
+        'erf_size':                 erf_size,
+        'heritage_overlay':         heritage,
+        'environmental_restriction': enviro,
+        'notes':                    zone['notes'],
+        'data_source':              'NMBM Land Use Scheme V6 (January 2023)',
+        'is_dynamic':               True,
+    }
+
+    score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
+    property_data['feasibility_score']      = score
+    property_data['feasibility_notes']      = notes
+    property_data['feasibility_grade']      = grade
+    property_data['feasibility_grade_text'] = grade_text
+    property_data['buildable_area']         = buildable_area
+
+    # Store in session for PDF generation
+    session['dynamic_property'] = property_data
+
+    return render_template('result.html', property=property_data)
+
+
+# ─────────────────────────────────────────────
+# PDF REPORT — known ERF
 # ─────────────────────────────────────────────
 
 @app.route('/generate_pdf/<erf_number>')
@@ -293,6 +539,28 @@ def generate_pdf(erf_number):
         pdf_buffer,
         as_attachment=True,
         download_name=f"Regulo_Zoning_Report_ERF{erf_number}.pdf",
+        mimetype='application/pdf'
+    )
+
+
+# ─────────────────────────────────────────────
+# PDF REPORT — dynamic zone lookup
+# ─────────────────────────────────────────────
+
+@app.route('/generate_pdf_dynamic')
+def generate_pdf_dynamic():
+    property_data = session.get('dynamic_property')
+
+    if not property_data:
+        return redirect(url_for('index'))
+
+    pdf_buffer = build_pdf(property_data)
+    erf = property_data.get('erf_number', 'manual')
+
+    return send_file(
+        pdf_buffer,
+        as_attachment=True,
+        download_name=f"Regulo_Zoning_Report_ERF{erf}.pdf",
         mimetype='application/pdf'
     )
 
@@ -351,14 +619,14 @@ def build_pdf(p):
     content.append(Paragraph("Property Details", section_style))
 
     details = [
-        ["ERF Number",            p.get('erf_number', 'N/A')],
-        ["Suburb",                p.get('suburb', 'N/A')],
-        ["Zone",                  p.get('zone', 'N/A')],
-        ["Land Use",              p.get('land_use', 'N/A')],
-        ["Erf Size",              f"{p.get('erf_size', 'N/A')} m²"],
-        ["Max Coverage",          p.get('coverage', 'N/A')],
-        ["Max Height",            p.get('height', 'N/A')],
-        ["Setbacks",              p.get('setbacks', 'N/A')],
+        ["ERF Number",              p.get('erf_number', 'N/A')],
+        ["Suburb",                  p.get('suburb', 'N/A')],
+        ["Zone",                    p.get('zone', 'N/A')],
+        ["Land Use",                p.get('land_use', 'N/A')],
+        ["Erf Size",                f"{p.get('erf_size', 'N/A')} m²"],
+        ["Max Coverage",            p.get('coverage', 'N/A')],
+        ["Max Height",              p.get('height', 'N/A')],
+        ["Setbacks",                p.get('setbacks', 'N/A')],
         ["Floor Area Ratio (est.)", str(p.get('floor_area_ratio', 'N/A'))],
     ]
 
