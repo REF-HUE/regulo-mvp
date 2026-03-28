@@ -226,6 +226,16 @@ h1, h2, h3 {
     border-top: 3px solid #4361ee;
 }
 
+/* ─── Source Note ────────────────────────────── */
+
+.source-note {
+    font-size: 0.72rem !important;
+    color: #aaa;
+    margin-top: 8px;
+    line-height: 1.5;
+    font-style: italic;
+}
+
 /* ─── Warning / Summary / Error Boxes ───────── */
 
 .warning-box {

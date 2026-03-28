@@ -10,6 +10,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from datetime import datetime
 from feasibility import calculate_feasibility
+from johannesburg_zones import (
+    JOBURG_ZONES, HEIGHT_ZONES, JOBURG_DATA_SOURCE,
+    calculate_joburg_floor_space, get_joburg_zone_params
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'regulo-systems-2025')
@@ -27,11 +31,11 @@ def get_db():
     return conn
 
 
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # NMBM ZONE DATA
 # Source: NMBM Land Use Scheme V6, 19 January 2023
 # FAR is estimated — NMBM uses coverage % + height, not FAR
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ZONE_DATA = {
     "Single Residential Zone 1": {
@@ -235,16 +239,11 @@ ZONE_DATA = {
 }
 
 
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # AUTO-SEED ON STARTUP
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def auto_seed():
-    """
-    Create and seed the database with known properties.
-    Always reseeds on startup to ensure latest data is applied.
-    Source: NMBM Land Use Scheme V6, 19 January 2023.
-    """
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
@@ -282,7 +281,7 @@ def auto_seed():
             "100%", 3.0, "No restriction (subject to SDF)",
             "Street: 0m | Side: 0m | Rear: 0m",
             1200, 100.0, 30, 0, 0,
-            "General Business zone permits the widest range of uses including retail, office, residential buildings, and mixed-use development. No height restriction applies unless specified by the Spatial Development Framework.",
+            "General Business zone permits the widest range of uses including retail, office, residential buildings, and mixed-use development.",
             source
         ),
         (
@@ -292,7 +291,7 @@ def auto_seed():
             "75%", 1.5, "No restriction (subject to SDF)",
             "Street: 5m | Side: 3m or half height (max 10m) | Rear: 3m or half height (max 10m)",
             900, 75.0, 20, 0, 0,
-            "High-density residential zone. Suitable for blocks of flats, townhouses, student accommodation and retirement villages. Outdoor living area of at least 10% of erf area required.",
+            "High-density residential zone. Suitable for blocks of flats, townhouses, student accommodation and retirement villages.",
             source
         ),
         (
@@ -302,7 +301,7 @@ def auto_seed():
             "60%", 0.6, "8.5m",
             "Street: 3m | Side: 1.5m | Rear: 1.5m",
             750, 60.0, 8.5, 1, 0,
-            "Single residential zone for erven larger than 600m². Property falls within a Heritage Overlay — additional approvals from SAHRA or the local heritage authority may be required before any development or alterations.",
+            "Single residential zone for erven larger than 600m². Property falls within a Heritage Overlay.",
             source
         ),
         (
@@ -312,7 +311,7 @@ def auto_seed():
             "70%", 1.5, "No restriction (subject to SDF)",
             "Street: 5m | Side: 5m or half height (max 10m) | Rear: 5m or half height (max 10m)",
             1500, 70.0, 15, 0, 0,
-            "Limited Business zone for low-intensity neighbourhood commercial development. Intended to serve local convenience needs. Scale must be compatible with adjacent residential areas.",
+            "Limited Business zone for low-intensity neighbourhood commercial development.",
             source
         ),
         (
@@ -322,7 +321,7 @@ def auto_seed():
             "80%", 0.8, "8.5m",
             "Street: 1m (if required) | Side: 1m (if required) | Rear: 1m (if required)",
             680, 80.0, 8.5, 0, 1,
-            "Single Residential B zone with environmental restriction — proximity to coastal system. An Environmental Impact Assessment (EIA) may be required before development. Confirm environmental constraints with NMBM before proceeding.",
+            "Single Residential B zone with environmental restriction — proximity to coastal system.",
             source
         ),
         (
@@ -332,7 +331,7 @@ def auto_seed():
             "100%", 2.0, "No restriction (subject to SDF)",
             "Street: 0m | Side: 0m | Rear: 0m",
             1100, 100.0, 20, 1, 0,
-            "General Business zone in a mixed-use precinct. Heritage overlay applies — Richmond Hill is a heritage-sensitive area. Approvals from the local heritage authority may be required. Mixed residential and commercial development is encouraged.",
+            "General Business zone in a mixed-use precinct. Heritage overlay applies — Richmond Hill is a heritage-sensitive area.",
             source
         ),
     ]
@@ -354,18 +353,18 @@ def auto_seed():
 auto_seed()
 
 
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # HOME
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
-# ─────────────────────────────────────────────
-# SEARCH / RESULTS
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# NMBM SEARCH / RESULTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.route('/search', methods=['GET', 'POST'])
 def search():
@@ -398,7 +397,6 @@ def search():
                                                  f"It is registered in {actual_suburb}. "
                                                  f"Try leaving the suburb blank, or enter \"{actual_suburb}\".")
                 else:
-                    # Redirect to zone lookup for unknown ERFs
                     return redirect(url_for('zone_lookup', erf_number=erf_number, suburb=suburb))
         else:
             prop = db.execute(
@@ -408,11 +406,11 @@ def search():
             db.close()
 
             if not prop:
-                # Redirect to zone lookup for unknown ERFs
                 return redirect(url_for('zone_lookup', erf_number=erf_number))
 
         property_data = dict(prop)
         property_data['is_dynamic'] = False
+        property_data['municipality'] = 'nmbm'
 
         score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
         property_data['feasibility_score']      = score
@@ -426,9 +424,9 @@ def search():
     return redirect(url_for('index'))
 
 
-# ─────────────────────────────────────────────
-# ZONE LOOKUP — for ERFs not in database
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# NMBM ZONE LOOKUP — for ERFs not in database
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.route('/zone-lookup', methods=['GET', 'POST'])
 def zone_lookup():
@@ -442,7 +440,6 @@ def zone_lookup():
                                suburb=suburb,
                                zones=zones)
 
-    # POST — generate result from zone data
     erf_number  = request.form.get('erf_number', '').strip() or 'Unknown'
     suburb      = request.form.get('suburb', 'Gqeberha').strip()
     zone_key    = request.form.get('zone', '').strip()
@@ -452,9 +449,7 @@ def zone_lookup():
 
     if not zone_key or not erf_size_raw:
         return render_template('zone_lookup.html',
-                               erf_number=erf_number,
-                               suburb=suburb,
-                               zones=zones,
+                               erf_number=erf_number, suburb=suburb, zones=zones,
                                error="Please select a zone and enter the ERF size.")
 
     try:
@@ -463,18 +458,14 @@ def zone_lookup():
             raise ValueError
     except ValueError:
         return render_template('zone_lookup.html',
-                               erf_number=erf_number,
-                               suburb=suburb,
-                               zones=zones,
+                               erf_number=erf_number, suburb=suburb, zones=zones,
                                error="ERF size must be a positive number in m².")
 
     zone = ZONE_DATA.get(zone_key)
     if not zone:
         return render_template('zone_lookup.html',
-                               erf_number=erf_number,
-                               suburb=suburb,
-                               zones=zones,
-                               error="Invalid zone selected. Please choose from the list.")
+                               erf_number=erf_number, suburb=suburb, zones=zones,
+                               error="Invalid zone selected.")
 
     property_data = {
         'erf_number':               erf_number,
@@ -494,6 +485,7 @@ def zone_lookup():
         'notes':                    zone['notes'],
         'data_source':              'NMBM Land Use Scheme V6 (January 2023)',
         'is_dynamic':               True,
+        'municipality':             'nmbm',
     }
 
     score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
@@ -503,15 +495,112 @@ def zone_lookup():
     property_data['feasibility_grade_text'] = grade_text
     property_data['buildable_area']         = buildable_area
 
-    # Store in session for PDF generation
     session['dynamic_property'] = property_data
-
     return render_template('result.html', property=property_data)
 
 
-# ─────────────────────────────────────────────
-# PDF REPORT — known ERF
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# JOHANNESBURG SEARCH
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.route('/joburg', methods=['GET'])
+def joburg_index():
+    """Redirect to Joburg zone lookup form."""
+    return redirect(url_for('joburg_lookup'))
+
+
+@app.route('/joburg-lookup', methods=['GET', 'POST'])
+def joburg_lookup():
+    zones = sorted(JOBURG_ZONES.keys())
+    height_zones = HEIGHT_ZONES
+
+    if request.method == 'GET':
+        erf_number = request.args.get('erf_number', '')
+        suburb     = request.args.get('suburb', '')
+        return render_template('joburg_lookup.html',
+                               erf_number=erf_number,
+                               suburb=suburb,
+                               zones=zones,
+                               height_zones=height_zones)
+
+    # POST — generate Johannesburg result
+    erf_number   = request.form.get('erf_number', '').strip() or 'Unknown'
+    suburb       = request.form.get('suburb', '').strip() or 'Johannesburg'
+    zone_key     = request.form.get('zone', '').strip()
+    height_zone  = request.form.get('height_zone', '').strip().upper()
+    erf_size_raw = request.form.get('erf_size', '').strip()
+    heritage     = 1 if request.form.get('heritage_overlay') else 0
+    enviro       = 1 if request.form.get('environmental_restriction') else 0
+
+    if not zone_key or not height_zone or not erf_size_raw:
+        return render_template('joburg_lookup.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones, height_zones=height_zones,
+                               error="Please select a zone, height zone, and enter the ERF size.")
+
+    if height_zone not in ('A', 'B', 'C'):
+        return render_template('joburg_lookup.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones, height_zones=height_zones,
+                               error="Please select a valid Height Zone (A, B, or C).")
+
+    try:
+        erf_size = int(erf_size_raw)
+        if erf_size <= 0:
+            raise ValueError
+    except ValueError:
+        return render_template('joburg_lookup.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones, height_zones=height_zones,
+                               error="ERF size must be a positive number in m².")
+
+    params = get_joburg_zone_params(zone_key, height_zone)
+    if not params:
+        return render_template('joburg_lookup.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones, height_zones=height_zones,
+                               error="Invalid zone or height zone selected.")
+
+    max_floor_space, coverage_pct, formula = calculate_joburg_floor_space(zone_key, height_zone, erf_size)
+
+    property_data = {
+        'erf_number':               erf_number,
+        'suburb':                   suburb,
+        'city':                     'Johannesburg',
+        'zone':                     params['zone_display'],
+        'land_use':                 params['land_use'],
+        'coverage':                 f"{params['coverage']}%",
+        'coverage_numeric':         float(params['coverage']),
+        'floor_area_ratio':         params['far'],
+        'height':                   params['height'],
+        'height_numeric':           params['height_numeric'],
+        'setbacks':                 params['setbacks'],
+        'erf_size':                 erf_size,
+        'heritage_overlay':         heritage,
+        'environmental_restriction': enviro,
+        'notes':                    params['notes'],
+        'data_source':              JOBURG_DATA_SOURCE,
+        'is_dynamic':               True,
+        'municipality':             'johannesburg',
+        'height_zone':              height_zone,
+        'height_zone_desc':         params['height_zone_desc'],
+        'joburg_formula':           formula,
+    }
+
+    score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
+    property_data['feasibility_score']      = score
+    property_data['feasibility_notes']      = notes
+    property_data['feasibility_grade']      = grade
+    property_data['feasibility_grade_text'] = grade_text
+    property_data['buildable_area']         = buildable_area
+
+    session['dynamic_property'] = property_data
+    return render_template('result.html', property=property_data)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PDF REPORT — known NMBM ERF
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.route('/generate_pdf/<erf_number>')
 def generate_pdf(erf_number):
@@ -525,6 +614,7 @@ def generate_pdf(erf_number):
         return "Property not found", 404
 
     property_data = dict(prop)
+    property_data['municipality'] = 'nmbm'
 
     score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
     property_data['feasibility_score']      = score
@@ -543,9 +633,9 @@ def generate_pdf(erf_number):
     )
 
 
-# ─────────────────────────────────────────────
-# PDF REPORT — dynamic zone lookup
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PDF REPORT — dynamic (NMBM zone lookup + Johannesburg)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.route('/generate_pdf_dynamic')
 def generate_pdf_dynamic():
@@ -565,9 +655,9 @@ def generate_pdf_dynamic():
     )
 
 
-# ─────────────────────────────────────────────
-# PDF BUILDER
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PDF BUILDER — supports both NMBM and Johannesburg
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def build_pdf(p):
     buffer = io.BytesIO()
@@ -608,6 +698,10 @@ def build_pdf(p):
                                   fontSize=8, textColor=colors.grey,
                                   leading=11, spaceBefore=4)
 
+    # Determine municipality context
+    is_joburg = p.get('municipality') == 'johannesburg'
+    city_name = p.get('city', 'Gqeberha')
+
     content.append(Paragraph("REGULO SYSTEMS", title_style))
     content.append(Paragraph("Zoning Intelligence Report", sub_style))
     content.append(Paragraph(
@@ -619,16 +713,23 @@ def build_pdf(p):
     content.append(Paragraph("Property Details", section_style))
 
     details = [
-        ["ERF Number",              p.get('erf_number', 'N/A')],
-        ["Suburb",                  p.get('suburb', 'N/A')],
-        ["Zone",                    p.get('zone', 'N/A')],
-        ["Land Use",                p.get('land_use', 'N/A')],
-        ["Erf Size",                f"{p.get('erf_size', 'N/A')} m²"],
-        ["Max Coverage",            p.get('coverage', 'N/A')],
-        ["Max Height",              p.get('height', 'N/A')],
-        ["Setbacks",                p.get('setbacks', 'N/A')],
-        ["Floor Area Ratio (est.)", str(p.get('floor_area_ratio', 'N/A'))],
+        ["ERF Number",     p.get('erf_number', 'N/A')],
+        ["Suburb",         p.get('suburb', 'N/A')],
+        ["Municipality",   "City of Johannesburg" if is_joburg else "Nelson Mandela Bay Municipality"],
+        ["Zone",           p.get('zone', 'N/A')],
+        ["Land Use",       p.get('land_use', 'N/A')],
+        ["Erf Size",       f"{p.get('erf_size', 'N/A')} m²"],
+        ["Max Coverage",   p.get('coverage', 'N/A')],
+        ["Max Height",     p.get('height', 'N/A')],
+        ["Setbacks",       p.get('setbacks', 'N/A')],
     ]
+
+    # Add Height Zone row for Johannesburg
+    if is_joburg and p.get('height_zone'):
+        details.append(["Height Zone", f"Height Zone {p['height_zone']}"])
+        details.append(["Floor Area Ratio", str(p.get('floor_area_ratio', 'N/A'))])
+    else:
+        details.append(["Floor Area Ratio (est.)", str(p.get('floor_area_ratio', 'N/A'))])
 
     tbl = Table(details, colWidths=[60*mm, 110*mm])
     tbl.setStyle(TableStyle([
@@ -642,15 +743,29 @@ def build_pdf(p):
     content.append(tbl)
 
     if p.get('data_source'):
-        content.append(Paragraph(
-            f"Source: {p['data_source']}. Floor Area Ratio is estimated — NMBM does not publish official FAR values.",
-            source_style
-        ))
+        if is_joburg:
+            content.append(Paragraph(
+                f"Source: {p['data_source']}. FAR values are official under the Johannesburg Town Planning Scheme.",
+                source_style
+            ))
+        else:
+            content.append(Paragraph(
+                f"Source: {p['data_source']}. Floor Area Ratio is estimated — NMBM does not publish official FAR values.",
+                source_style
+            ))
 
     if p.get('buildable_area'):
         content.append(Paragraph("Estimated Maximum Buildable Floor Area", section_style))
         far  = p.get('floor_area_ratio', 'N/A')
         size = p.get('erf_size', 'N/A')
+
+        if is_joburg and p.get('joburg_formula'):
+            formula_text = p['joburg_formula']
+            far_note = "FAR is official under the Johannesburg Town Planning Scheme."
+        else:
+            formula_text = f"{size} m² × {far} = {p['buildable_area']}"
+            far_note = "Estimated maximum gross floor area. FAR is not officially published by NMBM."
+
         ba_data = [[
             Paragraph(
                 f"<font size=26><b>{p['buildable_area']}</b></font>",
@@ -658,9 +773,9 @@ def build_pdf(p):
                                textColor=BLUE, alignment=TA_CENTER)
             ),
             Paragraph(
-                f"<b>ERF size × Estimated FAR</b><br/>"
-                f"<font size=9 color='grey'>{size} m² × {far} = {p['buildable_area']}<br/>"
-                f"Estimated maximum gross floor area. FAR is not officially published by NMBM.</font>",
+                f"<b>ERF size × FAR</b><br/>"
+                f"<font size=9 color='grey'>{formula_text}<br/>"
+                f"{far_note}</font>",
                 ParagraphStyle('BAText', parent=styles['Normal'], fontSize=10, leading=15)
             )
         ]]
@@ -745,9 +860,9 @@ def build_pdf(p):
     return buffer
 
 
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # RUN
-# ─────────────────────────────────────────────
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 if __name__ == '__main__':
     app.run(debug=True)

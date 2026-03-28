@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zone Lookup — Regulo Systems</title>
+    <title>Johannesburg Zone Lookup — Regulo Systems</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         .lookup-container {
@@ -29,6 +29,17 @@
             line-height: 1.6;
         }
 
+        .city-badge {
+            display: inline-block;
+            background: #fff3cd;
+            color: #856404;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
         .notice-box {
             background: #f0f4ff;
             border-left: 4px solid #4361ee;
@@ -45,6 +56,35 @@
 
         .notice-box strong {
             color: #4361ee;
+        }
+
+        .height-zone-info {
+            background: #f8f0ff;
+            border-left: 4px solid #7c3aed;
+            border-radius: 6px;
+            padding: 14px 18px;
+            margin-bottom: 28px;
+        }
+
+        .height-zone-info p {
+            font-size: 13px;
+            color: #333;
+            margin: 0 0 6px 0;
+        }
+
+        .height-zone-info strong {
+            color: #7c3aed;
+        }
+
+        .height-zone-info ul {
+            margin: 6px 0 0 0;
+            padding-left: 18px;
+        }
+
+        .height-zone-info li {
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 3px;
         }
 
         .form-group {
@@ -103,6 +143,12 @@
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 16px;
         }
 
@@ -198,16 +244,29 @@
 </head>
 <body>
     <div class="lookup-container">
-        <a href="/" class="back-link">← Back to Search</a>
+        <a href="/" class="back-link">← Back to Home</a>
 
         <div class="lookup-header">
-            <h1>Zone-Based Lookup</h1>
-            <p>ERF <strong>{{ erf_number }}</strong> is not yet in our verified database. Enter the zoning details from your title deed or NMBM records to generate a full analysis.</p>
+            <span class="city-badge">🏙️ JOHANNESBURG</span>
+            <h1>Johannesburg Zone Lookup</h1>
+            <p>Enter your property's zoning details from your title deed or City of Johannesburg records to generate a full zoning analysis.</p>
         </div>
 
         <div class="notice-box">
             <p>
-                <strong>Where to find your zone:</strong> Check your title deed, the NMBM GIS portal at <em>gis.nmbm.org.za</em>, or ask your architect. The zone is also listed on your municipal rates account.
+                <strong>Where to find your zone:</strong> Check your title deed, the City of Johannesburg GIS portal, or ask your architect/town planner. The zone and height zone are listed on your municipal rates account and zoning certificate.
+            </p>
+        </div>
+
+        <div class="height-zone-info">
+            <p><strong>Johannesburg uses a Height Zone system:</strong></p>
+            <ul>
+                <li><strong>Height Zone A</strong> — Low intensity (suburban areas)</li>
+                <li><strong>Height Zone B</strong> — Medium intensity (transitional areas)</li>
+                <li><strong>Height Zone C</strong> — High intensity (urban core &amp; corridors)</li>
+            </ul>
+            <p style="margin-top: 8px; font-size: 12px; color: #888;">
+                The height zone affects your FAR, coverage, and height allowances within the same zone category.
             </p>
         </div>
 
@@ -217,37 +276,47 @@
         </div>
         {% endif %}
 
-        <form action="/zone-lookup" method="POST">
-            <input type="hidden" name="erf_number" value="{{ erf_number }}">
-
-            <div class="form-row">
+        <form action="/joburg-lookup" method="POST">
+            <div class="form-row-3">
                 <div class="form-group">
-                    <label>ERF Number</label>
-                    <input type="text" value="{{ erf_number }}" disabled style="background:#f5f5f5; color:#888;">
+                    <label for="erf_number">ERF Number</label>
+                    <input type="text" id="erf_number" name="erf_number" value="{{ erf_number }}" placeholder="e.g. 1245">
                 </div>
                 <div class="form-group">
                     <label for="suburb">Suburb <span class="required">*</span></label>
-                    <input type="text" id="suburb" name="suburb" value="{{ suburb }}" placeholder="e.g. Newton Park" required>
+                    <input type="text" id="suburb" name="suburb" value="{{ suburb }}" placeholder="e.g. Sandton" required>
+                </div>
+                <div class="form-group">
+                    <label for="erf_size">Erf Size (m²) <span class="required">*</span></label>
+                    <input type="number" id="erf_size" name="erf_size" placeholder="e.g. 1200" min="1" required>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="zone">Zoning Category <span class="required">*</span></label>
-                <div class="select-wrapper">
-                    <select id="zone" name="zone" required>
-                        <option value="" disabled selected>Select zone from NMBM Land Use Scheme V6</option>
-                        {% for zone in zones %}
-                        <option value="{{ zone }}">{{ zone }}</option>
-                        {% endfor %}
-                    </select>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="zone">Zoning Category <span class="required">*</span></label>
+                    <div class="select-wrapper">
+                        <select id="zone" name="zone" required>
+                            <option value="" disabled selected>Select zone</option>
+                            {% for zone in zones %}
+                            <option value="{{ zone }}">{{ zone }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <p class="hint">Source: CoJ Town Planning Scheme</p>
                 </div>
-                <p class="hint">Source: NMBM Land Use Scheme Version 6 (January 2023)</p>
-            </div>
-
-            <div class="form-group">
-                <label for="erf_size">Erf Size (m²) <span class="required">*</span></label>
-                <input type="number" id="erf_size" name="erf_size" placeholder="e.g. 800" min="1" required>
-                <p class="hint">Found on your title deed or municipal valuation roll.</p>
+                <div class="form-group">
+                    <label for="height_zone">Height Zone <span class="required">*</span></label>
+                    <div class="select-wrapper">
+                        <select id="height_zone" name="height_zone" required>
+                            <option value="" disabled selected>Select height zone</option>
+                            <option value="A">Height Zone A — Low intensity</option>
+                            <option value="B">Height Zone B — Medium intensity</option>
+                            <option value="C">Height Zone C — High intensity</option>
+                        </select>
+                    </div>
+                    <p class="hint">Found on your zoning certificate or title deed</p>
+                </div>
             </div>
 
             <hr class="divider">
@@ -272,11 +341,11 @@
                 </div>
             </div>
 
-            <button type="submit" class="submit-btn">Generate Zoning Analysis →</button>
+            <button type="submit" class="submit-btn">Generate Johannesburg Zoning Analysis →</button>
         </form>
 
         <p style="font-size: 11px; color: #aaa; text-align: center; margin-top: 20px;">
-            Results are based on NMBM Land Use Scheme V6 zone parameters and are for preliminary guidance only.
+            Results are based on City of Johannesburg Town Planning Scheme parameters and are for preliminary guidance only.
         </p>
     </div>
 </body>
