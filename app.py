@@ -354,6 +354,96 @@ auto_seed()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ANALYTICS — visit tracking
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def init_analytics():
+    """Create visits table if it doesn't exist. Never deletes visit data."""
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS visits (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        page       TEXT,
+        ip         TEXT,
+        referrer   TEXT,
+        user_agent TEXT,
+        timestamp  TEXT
+    )
+    """)
+    conn.commit()
+    conn.close()
+    print("✅ Analytics table ready")
+
+init_analytics()
+
+
+@app.before_request
+def log_visit():
+    """Log every page visit to the database."""
+    if request.path.startswith('/static') or request.path == '/favicon.ico':
+        return
+    try:
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
+        cursor.execute("""
+        INSERT INTO visits (page, ip, referrer, user_agent, timestamp)
+        VALUES (?, ?, ?, ?, ?)
+        """, (
+            request.path,
+            request.headers.get('X-Forwarded-For', request.remote_addr),
+            request.referrer or '',
+            str(request.user_agent),
+            datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        ))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
+@app.route('/admin/analytics')
+def analytics():
+    """Simple analytics dashboard — password protected via query param."""
+    key = request.args.get('key', '')
+    if key != os.environ.get('ANALYTICS_KEY', 'regulo2026'):
+        return "Unauthorized", 401
+
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    total = cursor.execute("SELECT COUNT(*) as count FROM visits").fetchone()['count']
+    unique = cursor.execute("SELECT COUNT(DISTINCT ip) as count FROM visits").fetchone()['count']
+
+    today = datetime.now().strftime('%Y-%m-%d')
+    today_count = cursor.execute(
+        "SELECT COUNT(*) as count FROM visits WHERE timestamp LIKE ?", (f"{today}%",)
+    ).fetchone()['count']
+
+    pages = cursor.execute("""
+        SELECT page, COUNT(*) as count FROM visits
+        GROUP BY page ORDER BY count DESC LIMIT 20
+    """).fetchall()
+
+    daily = cursor.execute("""
+        SELECT DATE(timestamp) as day, COUNT(*) as count FROM visits
+        GROUP BY DATE(timestamp) ORDER BY day DESC LIMIT 14
+    """).fetchall()
+
+    recent = cursor.execute("""
+        SELECT page, ip, referrer, user_agent, timestamp FROM visits
+        ORDER BY id DESC LIMIT 20
+    """).fetchall()
+
+    conn.close()
+
+    return render_template('analytics.html',
+                           total=total, unique=unique, today_count=today_count,
+                           pages=pages, daily=daily, recent=recent)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # HOME
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
