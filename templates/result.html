@@ -25,6 +25,8 @@
                     {{ property.suburb }},
                     {% if property.municipality == 'johannesburg' %}
                         Johannesburg
+                    {% elif property.municipality == 'capetown' %}
+                        Cape Town
                     {% else %}
                         Gqeberha
                     {% endif %}
@@ -33,12 +35,18 @@
                     <p style="font-size: 12px; color: #7c3aed; margin-top: 4px; font-weight: 600;">
                         🏙️ City of Johannesburg · Height Zone {{ property.height_zone }}
                     </p>
+                {% elif property.municipality == 'capetown' %}
+                    <p style="font-size: 12px; color: #16a34a; margin-top: 4px; font-weight: 600;">
+                        🌿 City of Cape Town
+                    </p>
                 {% endif %}
                 {% if property.is_dynamic %}
                     <p style="font-size: 12px; color: #888; margin-top: 4px;">
-                        ℹ Zone-based analysis —
+                        ℹ Zone-based analysis –
                         {% if property.municipality == 'johannesburg' %}
                             parameters sourced from CoJ Town Planning Scheme
+                        {% elif property.municipality == 'capetown' %}
+                            parameters sourced from CoCT Zoning Scheme Regulations
                         {% else %}
                             parameters sourced from NMBM LUS V6
                         {% endif %}
@@ -70,6 +78,11 @@
                         <div class="formula" style="font-size: 11px; margin-top: 4px; opacity: 0.7;">
                             FAR is official under the Johannesburg Town Planning Scheme
                         </div>
+                    {% elif property.municipality == 'capetown' and property.capetown_formula %}
+                        <div class="formula">{{ property.capetown_formula }}</div>
+                        <div class="formula" style="font-size: 11px; margin-top: 4px; opacity: 0.7;">
+                            Floor Factor is from the City of Cape Town Zoning Scheme Regulations
+                        </div>
                     {% else %}
                         <div class="formula">{{ property.erf_size }} m² × {{ property.floor_area_ratio }} (ERF size × Estimated FAR)</div>
                     {% endif %}
@@ -96,6 +109,9 @@
                     {% if property.municipality == 'johannesburg' %}
                         <p><strong>Floor Area Ratio:</strong> {{ property.floor_area_ratio }}</p>
                         <p class="source-note">Source: City of Johannesburg Town Planning Scheme.<br>FAR values are official.</p>
+                    {% elif property.municipality == 'capetown' %}
+                        <p><strong>Floor Factor:</strong> {{ property.floor_area_ratio }}</p>
+                        <p class="source-note">Source: City of Cape Town Zoning Scheme Regulations (2012).<br>Floor Factor values are official.</p>
                     {% else %}
                         <p><strong>Floor Area Ratio (est.):</strong> {{ property.floor_area_ratio }}</p>
                         <p class="source-note">Source: NMBM Land Use Scheme V6, 2023.<br>FAR is estimated — NMBM does not publish official FAR values.</p>
@@ -155,6 +171,10 @@
             {% if property and property.municipality == 'johannesburg' %}
                 <a href="/joburg-lookup" class="btn-primary" style="margin-left: 10px; background: transparent; border: 2px solid #4361ee; color: #4361ee;">
                     Search Another Joburg Property
+                </a>
+            {% elif property and property.municipality == 'capetown' %}
+                <a href="/capetown-lookup" class="btn-primary" style="margin-left: 10px; background: transparent; border: 2px solid #16a34a; color: #16a34a;">
+                    Search Another Cape Town Property
                 </a>
             {% endif %}
         </div>
