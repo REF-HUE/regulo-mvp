@@ -14,6 +14,10 @@ from johannesburg_zones import (
     JOBURG_ZONES, HEIGHT_ZONES, JOBURG_DATA_SOURCE,
     calculate_joburg_floor_space, get_joburg_zone_params
 )
+from capetown_zones import (
+    CAPETOWN_ZONES, CAPETOWN_DATA_SOURCE,
+    get_capetown_zone_params, calculate_capetown_floor_space
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'regulo-systems-2025')
@@ -713,6 +717,98 @@ def joburg_lookup():
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CAPE TOWN SEARCH
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.route('/capetown', methods=['GET'])
+def capetown_index():
+    """Redirect to Cape Town zone lookup form."""
+    return redirect(url_for('capetown_lookup'))
+
+
+@app.route('/capetown-lookup', methods=['GET', 'POST'])
+def capetown_lookup():
+    zones = sorted(CAPETOWN_ZONES.keys())
+
+    if request.method == 'GET':
+        erf_number = request.args.get('erf_number', '')
+        suburb     = request.args.get('suburb', '')
+        return render_template('capetown_lookup.html',
+                               erf_number=erf_number,
+                               suburb=suburb,
+                               zones=zones)
+
+    # POST — generate Cape Town result
+    erf_number   = request.form.get('erf_number', '').strip() or 'Unknown'
+    suburb       = request.form.get('suburb', '').strip() or 'Cape Town'
+    zone_key     = request.form.get('zone', '').strip()
+    erf_size_raw = request.form.get('erf_size', '').strip()
+    heritage     = 1 if request.form.get('heritage_overlay') else 0
+    enviro       = 1 if request.form.get('environmental_restriction') else 0
+
+    if not zone_key or not erf_size_raw:
+        return render_template('capetown_lookup.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones,
+                               error="Please select a zone and enter the ERF size.")
+
+    try:
+        erf_size = int(erf_size_raw)
+        if erf_size <= 0:
+            raise ValueError
+    except ValueError:
+        return render_template('capetown_lookup.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones,
+                               error="ERF size must be a positive number in m².")
+
+    params = get_capetown_zone_params(zone_key, erf_size)
+    if not params:
+        return render_template('capetown_lookup.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones,
+                               error="Invalid zone selected.")
+
+    max_floor_space, coverage_pct, formula = calculate_capetown_floor_space(zone_key, erf_size)
+
+    # Determine coverage and floor factor for the property data
+    floor_factor = params.get('floor_factor') or 0
+    coverage = params.get('coverage')
+
+    property_data = {
+        'erf_number':               erf_number,
+        'suburb':                   suburb,
+        'city':                     'Cape Town',
+        'zone':                     params['zone_display'],
+        'land_use':                 params['land_use'],
+        'coverage':                 f"{coverage}%" if coverage else "N/a (floor factor controls)",
+        'coverage_numeric':         float(coverage) if coverage else 60.0,
+        'floor_area_ratio':         floor_factor,
+        'height':                   params['height'],
+        'height_numeric':           params['height_numeric'],
+        'setbacks':                 params['setbacks'],
+        'erf_size':                 erf_size,
+        'heritage_overlay':         heritage,
+        'environmental_restriction': enviro,
+        'notes':                    params['notes'],
+        'data_source':              CAPETOWN_DATA_SOURCE,
+        'is_dynamic':               True,
+        'municipality':             'capetown',
+        'capetown_formula':         formula,
+    }
+
+    score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
+    property_data['feasibility_score']      = score
+    property_data['feasibility_notes']      = notes
+    property_data['feasibility_grade']      = grade
+    property_data['feasibility_grade_text'] = grade_text
+    property_data['buildable_area']         = buildable_area
+
+    session['dynamic_property'] = property_data
+    return render_template('result.html', property=property_data)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PDF REPORT — known NMBM ERF
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -814,7 +910,16 @@ def build_pdf(p):
 
     # Determine municipality context
     is_joburg = p.get('municipality') == 'johannesburg'
+    is_capetown = p.get('municipality') == 'capetown'
     city_name = p.get('city', 'Gqeberha')
+
+    # Municipality display name
+    if is_joburg:
+        muni_name = "City of Johannesburg"
+    elif is_capetown:
+        muni_name = "City of Cape Town"
+    else:
+        muni_name = "Nelson Mandela Bay Municipality"
 
     content.append(Paragraph("REGULO SYSTEMS", title_style))
     content.append(Paragraph("Zoning Intelligence Report", sub_style))
@@ -829,7 +934,7 @@ def build_pdf(p):
     details = [
         ["ERF Number",     p.get('erf_number', 'N/A')],
         ["Suburb",         p.get('suburb', 'N/A')],
-        ["Municipality",   "City of Johannesburg" if is_joburg else "Nelson Mandela Bay Municipality"],
+        ["Municipality",   muni_name],
         ["Zone",           p.get('zone', 'N/A')],
         ["Land Use",       p.get('land_use', 'N/A')],
         ["Erf Size",       f"{p.get('erf_size', 'N/A')} m²"],
@@ -842,6 +947,8 @@ def build_pdf(p):
     if is_joburg and p.get('height_zone'):
         details.append(["Height Zone", f"Height Zone {p['height_zone']}"])
         details.append(["Floor Area Ratio", str(p.get('floor_area_ratio', 'N/A'))])
+    elif is_capetown:
+        details.append(["Floor Factor", str(p.get('floor_area_ratio', 'N/A'))])
     else:
         details.append(["Floor Area Ratio (est.)", str(p.get('floor_area_ratio', 'N/A'))])
 
@@ -862,6 +969,11 @@ def build_pdf(p):
                 f"Source: {p['data_source']}. FAR values are official under the Johannesburg Town Planning Scheme.",
                 source_style
             ))
+        elif is_capetown:
+            content.append(Paragraph(
+                f"Source: {p['data_source']}. Floor Factor values are from the City of Cape Town Zoning Scheme Regulations.",
+                source_style
+            ))
         else:
             content.append(Paragraph(
                 f"Source: {p['data_source']}. Floor Area Ratio is estimated — NMBM does not publish official FAR values.",
@@ -876,6 +988,9 @@ def build_pdf(p):
         if is_joburg and p.get('joburg_formula'):
             formula_text = p['joburg_formula']
             far_note = "FAR is official under the Johannesburg Town Planning Scheme."
+        elif is_capetown and p.get('capetown_formula'):
+            formula_text = p['capetown_formula']
+            far_note = "Floor Factor is from the City of Cape Town Zoning Scheme Regulations."
         else:
             formula_text = f"{size} m² × {far} = {p['buildable_area']}"
             far_note = "Estimated maximum gross floor area. FAR is not officially published by NMBM."
