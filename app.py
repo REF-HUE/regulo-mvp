@@ -893,7 +893,7 @@ def build_pdf(p):
     title_style = ParagraphStyle('Title', parent=styles['Normal'],
                                  fontSize=22, textColor=DARK,
                                  fontName='Helvetica-Bold', alignment=TA_CENTER,
-                                 spaceAfter=4)
+                                 spaceAfter=20)
     sub_style   = ParagraphStyle('Sub', parent=styles['Normal'],
                                  fontSize=10, textColor=colors.grey,
                                  alignment=TA_CENTER, spaceAfter=2)
