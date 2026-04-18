@@ -19,37 +19,37 @@ def calculate_feasibility(property_data):
     coverage = property_data.get('coverage_numeric', 100)
     if coverage < 40:
         score -= 20
-        notes.append("⚠️ Low coverage allowance (under 40%)")
+        notes.append("-  Low coverage allowance (under 40%)")
     elif coverage < 50:
         score -= 10
-        notes.append("⚠️ Moderate coverage restriction")
+        notes.append("-  Moderate coverage restriction")
     else:
-        notes.append("✓ Good coverage allowance")
+        notes.append("+  Good coverage allowance")
 
     # — Height constraint
     height = property_data.get('height_numeric', 10)
     if height <= 1:
         score -= 20
-        notes.append("⚠️ Severe height restriction (single storey only)")
+        notes.append("-  Severe height restriction (single storey only)")
     elif height <= 2:
         score -= 10
-        notes.append("⚠️ Height limited to 2 storeys")
+        notes.append("-  Height limited to 2 storeys")
     else:
-        notes.append("✓ Favorable height allowance")
+        notes.append("+  Favorable height allowance")
 
     # — Heritage overlay
     if property_data.get('heritage_overlay', 0) == 1:
         score -= 25
-        notes.append("⚠️ Heritage overlay - additional approvals required")
+        notes.append("-  Heritage overlay - additional approvals required")
     else:
-        notes.append("✓ No heritage restrictions")
+        notes.append("+  No heritage restrictions")
 
     # — Environmental restriction
     if property_data.get('environmental_restriction', 0) == 1:
         score -= 20
-        notes.append("⚠️ Environmental constraints apply")
+        notes.append("-  Environmental constraints apply")
     else:
-        notes.append("✓ No environmental restrictions")
+        notes.append("+  No environmental restrictions")
 
     # — Grade
     if score >= 90:
