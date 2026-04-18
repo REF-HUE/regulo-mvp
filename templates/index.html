@@ -1,193 +1,129 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Regulo Systems | South African Zoning Intelligence</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="/static/style.css">
     <style>
-        .municipality-selector {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin-bottom: 28px;
-            flex-wrap: wrap;
-        }
-
-        .muni-card {
-            flex: 1;
-            max-width: 200px;
-            min-width: 150px;
-            padding: 20px 16px;
-            border: 2px solid #dde3f0;
-            border-radius: 12px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: rgba(255, 255, 255, 0.05);
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .muni-card:hover {
-            border-color: #4361ee;
-            background: rgba(67, 97, 238, 0.08);
-            transform: translateY(-2px);
-        }
-
-        .muni-card.active {
-            border-color: #4361ee;
-            background: rgba(67, 97, 238, 0.12);
-        }
-
-        .muni-card .muni-icon {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-
-        .muni-card .muni-name {
-            font-size: 14px;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin-bottom: 4px;
-        }
-
-        .muni-card .muni-detail {
-            font-size: 11px;
-            color: #888;
-        }
-
-        .muni-card .muni-badge {
-            display: inline-block;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-top: 8px;
-        }
-
-        .muni-badge.live {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .muni-badge.new {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .or-divider {
-            font-size: 12px;
-            color: #aaa;
-            text-align: center;
-            margin: 24px 0 20px 0;
-        }
-
-        .other-cities {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .city-link {
-            display: inline-block;
-            padding: 12px 24px;
-            background: transparent;
-            border: 2px solid #4361ee;
-            color: #4361ee;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .city-link:hover {
-            background: #4361ee;
-            color: white;
-        }
-
-        /* Fix for dark theme compatibility */
-        @media (prefers-color-scheme: dark) {
-            .muni-card .muni-name { color: #e0e0e0; }
-        }
+        .home-wrapper{max-width:720px;margin:0 auto;padding:40px 20px 60px}
+        .hero{text-align:center;margin-bottom:48px}
+        .hero-brand{font-size:36px;font-weight:900;letter-spacing:6px;color:#4361ee;margin-bottom:4px}
+        .hero-slogan{font-size:13px;color:#888;font-style:italic;margin-bottom:20px;letter-spacing:0.5px}
+        .hero-headline{font-size:26px;font-weight:700;color:#1a1a2e;line-height:1.35;margin-bottom:12px}
+        .hero-sub{font-size:15px;color:#666;line-height:1.6;max-width:520px;margin:0 auto}
+        .pain-section{margin-bottom:40px}
+        .pain-section h2{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#e63946;margin-bottom:16px;font-weight:700}
+        .pain-cards{display:flex;flex-direction:column;gap:10px}
+        .pain-card{display:flex;align-items:flex-start;gap:14px;background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 2px 6px rgba(0,0,0,0.05)}
+        .pain-icon{font-size:20px;flex-shrink:0;margin-top:2px}
+        .pain-card strong{display:block;font-size:14px;color:#1a1a2e;margin-bottom:2px}
+        .pain-card span{font-size:13px;color:#666;line-height:1.5}
+        .solution-section{background:linear-gradient(135deg,#1a1a2e,#202a5c);border-radius:14px;padding:28px 24px;margin-bottom:40px;color:#fff}
+        .solution-section h2{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#4361ee;margin-bottom:14px;font-weight:700}
+        .solution-headline{font-size:20px;font-weight:700;color:#fff;margin-bottom:20px;line-height:1.4}
+        .what-you-get{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .get-item{display:flex;align-items:flex-start;gap:10px}
+        .get-item .check{color:#4361ee;font-size:16px;flex-shrink:0;margin-top:1px}
+        .get-item span{font-size:13px;color:#ccc;line-height:1.5}
+        .speed-badge{display:inline-block;margin-top:18px;background:rgba(67,97,238,0.15);color:#4361ee;font-size:13px;font-weight:700;padding:6px 16px;border-radius:20px}
+        .how-section{margin-bottom:40px}
+        .how-section h2{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:16px;font-weight:700}
+        .steps{display:flex;gap:12px}
+        .step{flex:1;text-align:center;padding:16px 12px;background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.05)}
+        .step-num{width:32px;height:32px;background:#4361ee;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;margin:0 auto 10px}
+        .step strong{display:block;font-size:13px;color:#1a1a2e;margin-bottom:4px}
+        .step span{font-size:11px;color:#888;line-height:1.4}
+        .muni-section{margin-bottom:32px}
+        .muni-section h2{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:16px;font-weight:700;text-align:center}
+        .municipality-selector{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}
+        .muni-card{flex:1;max-width:200px;min-width:150px;padding:18px 14px;border:2px solid #dde3f0;border-radius:12px;text-align:center;cursor:pointer;transition:all 0.2s ease;background:#fff;text-decoration:none;color:inherit}
+        .muni-card:hover{border-color:#4361ee;background:rgba(67,97,238,0.06);transform:translateY(-2px)}
+        .muni-card.active{border-color:#4361ee;background:rgba(67,97,238,0.08)}
+        .muni-card .muni-icon{font-size:24px;margin-bottom:6px}
+        .muni-card .muni-name{font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:3px}
+        .muni-card .muni-detail{font-size:11px;color:#888}
+        .muni-card .muni-badge{display:inline-block;font-size:9px;font-weight:600;padding:2px 8px;border-radius:10px;margin-top:6px}
+        .muni-badge.live{background:#d4edda;color:#155724}
+        .muni-badge.new{background:#fff3cd;color:#856404}
+        .search-section{margin-bottom:32px}
+        .or-divider{font-size:12px;color:#aaa;text-align:center;margin:20px 0 16px 0}
+        .other-cities{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+        .city-link{display:inline-block;padding:11px 22px;background:transparent;border:2px solid #4361ee;color:#4361ee;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;transition:all 0.2s}
+        .city-link:hover{background:#4361ee;color:white}
+        .home-footer{text-align:center;margin-top:40px;padding-top:24px;border-top:1px solid #eee}
+        .home-footer p{font-size:12px;color:#aaa;line-height:1.6}
+        .home-footer .company{font-size:11px;color:#ccc;margin-top:8px}
+        @media(max-width:768px){.home-wrapper{padding:24px 16px 48px}.hero-brand{font-size:28px;letter-spacing:4px}.hero-headline{font-size:20px}.hero-sub{font-size:14px}.what-you-get{grid-template-columns:1fr}.steps{flex-direction:column}.municipality-selector{flex-direction:column;align-items:center}.muni-card{max-width:100%;width:100%}.other-cities{flex-direction:column;align-items:center}.city-link{width:100%;text-align:center}.solution-section{padding:22px 18px}}
+        @media(max-width:380px){.hero-brand{font-size:24px}.hero-headline{font-size:18px}}
     </style>
 </head>
 <body>
-    <div class="search-container">
-        <h1>REGULO SYSTEMS</h1>
-
-        <p class="tagline">
-            Zoning intelligence for South African property professionals
-        </p>
-
-        <p class="description">
-            Instant zoning insights, development feasibility scores, and downloadable planning reports.
-        </p>
-
-        <!-- Municipality Selector -->
-        <div class="municipality-selector">
-            <div class="muni-card active" onclick="document.getElementById('nmbm-form').scrollIntoView({behavior:'smooth'})">
-                <div class="muni-icon">🏛️</div>
-                <div class="muni-name">Gqeberha (NMBM)</div>
-                <div class="muni-detail">Nelson Mandela Bay · 18 zones</div>
-                <span class="muni-badge live">LIVE</span>
-            </div>
-            <a href="/joburg-lookup" class="muni-card">
-                <div class="muni-icon">🏙️</div>
-                <div class="muni-name">Johannesburg (CoJ)</div>
-                <div class="muni-detail">City of Johannesburg · 22 zones</div>
-                <span class="muni-badge live">LIVE</span>
-            </a>
-            <a href="/capetown-lookup" class="muni-card">
-                <div class="muni-icon">🌿</div>
-                <div class="muni-name">Cape Town (CoCT)</div>
-                <div class="muni-detail">City of Cape Town · 27 zones</div>
-                <span class="muni-badge new">NEW</span>
-            </a>
+    <div class="home-wrapper">
+        <div class="hero">
+            <div class="hero-brand">REGULO SYSTEMS</div>
+            <p class="hero-slogan">Know your site before you design.</p>
+            <h1 class="hero-headline">Stop digging through zoning documents.<br>Get the parameters instantly.</h1>
+            <p class="hero-sub">Regulo gives architects, town planners, and developers instant access to municipal zoning data — coverage, height, setbacks, buildable area, and a downloadable PDF report.</p>
         </div>
-
+        <div class="pain-section">
+            <h2>The problem</h2>
+            <div class="pain-cards">
+                <div class="pain-card"><span class="pain-icon">&#9203;</span><div><strong>2-6 hours per project</strong><span>Architects spend unbillable hours sourcing zoning parameters from municipal planning documents before design can begin.</span></div></div>
+                <div class="pain-card"><span class="pain-icon">&#128196;</span><div><strong>200+ page planning schemes</strong><span>Zoning rules are scattered across large, technical documents that differ by municipality.</span></div></div>
+                <div class="pain-card"><span class="pain-icon">&#10060;</span><div><strong>Avoidable plan rejections</strong><span>Building plans get rejected because of zoning non-compliance that could have been caught early.</span></div></div>
+            </div>
+        </div>
+        <div class="solution-section">
+            <h2>What you get</h2>
+            <p class="solution-headline">Enter a zone and erf size. Regulo returns everything you need to start designing.</p>
+            <div class="what-you-get">
+                <div class="get-item"><span class="check">&#10003;</span><span>Permitted land uses</span></div>
+                <div class="get-item"><span class="check">&#10003;</span><span>Coverage and height limits</span></div>
+                <div class="get-item"><span class="check">&#10003;</span><span>Floor area / buildable area</span></div>
+                <div class="get-item"><span class="check">&#10003;</span><span>Setback requirements</span></div>
+                <div class="get-item"><span class="check">&#10003;</span><span>Feasibility score (A-F)</span></div>
+                <div class="get-item"><span class="check">&#10003;</span><span>Downloadable PDF report</span></div>
+                <div class="get-item"><span class="check">&#10003;</span><span>Heritage and environmental flags</span></div>
+                <div class="get-item"><span class="check">&#10003;</span><span>3 municipalities covered</span></div>
+            </div>
+            <span class="speed-badge">&#9889; Under 10 seconds per lookup</span>
+        </div>
+        <div class="how-section">
+            <h2>How it works</h2>
+            <div class="steps">
+                <div class="step"><div class="step-num">1</div><strong>Select municipality</strong><span>Choose Gqeberha, Joburg, or Cape Town</span></div>
+                <div class="step"><div class="step-num">2</div><strong>Enter zone and erf size</strong><span>From your title deed or zoning certificate</span></div>
+                <div class="step"><div class="step-num">3</div><strong>Get your report</strong><span>Instant parameters + downloadable PDF</span></div>
+            </div>
+        </div>
+        <div class="muni-section">
+            <h2>Choose a municipality</h2>
+            <div class="municipality-selector">
+                <div class="muni-card active" onclick="document.getElementById('nmbm-form').scrollIntoView({behavior:'smooth'})"><div class="muni-icon">&#127963;</div><div class="muni-name">Gqeberha (NMBM)</div><div class="muni-detail">Nelson Mandela Bay - 18 zones</div><span class="muni-badge live">LIVE</span></div>
+                <a href="/joburg-lookup" class="muni-card"><div class="muni-icon">&#127961;</div><div class="muni-name">Johannesburg (CoJ)</div><div class="muni-detail">City of Johannesburg - 22 zones</div><span class="muni-badge live">LIVE</span></a>
+                <a href="/capetown-lookup" class="muni-card"><div class="muni-icon">&#127807;</div><div class="muni-name">Cape Town (CoCT)</div><div class="muni-detail">City of Cape Town - 27 zones</div><span class="muni-badge new">NEW</span></a>
+            </div>
+        </div>
         {% if error %}
-            <div class="error-box" style="text-align:left; margin-bottom: 20px;">
-                <h2>❌ {{ error }}</h2>
-                <p>Please try another search or check your input.</p>
-            </div>
+        <div class="error-box" style="text-align:left;margin-bottom:20px;"><h2>{{ error }}</h2><p>Please try another search or check your input.</p></div>
         {% endif %}
-
-        <form id="nmbm-form" class="search-form" action="/search" method="POST">
-            <input
-                type="text"
-                name="erf_number"
-                placeholder="Enter ERF number (e.g. 3864)"
-                required
-                autocomplete="off"
-            />
-
-            <input
-                type="text"
-                name="suburb"
-                placeholder="Suburb (optional, e.g. Summerstrand)"
-                autocomplete="off"
-            />
-
-            <button type="submit">Search NMBM Property →</button>
-        </form>
-
-        <div class="or-divider">— or search another city —</div>
-
-        <div class="other-cities">
-            <a href="/joburg-lookup" class="city-link">🏙️ Johannesburg →</a>
-            <a href="/capetown-lookup" class="city-link">🌿 Cape Town →</a>
+        <div class="search-section">
+            <form id="nmbm-form" class="search-form" action="/search" method="POST">
+                <input type="text" name="erf_number" placeholder="Enter ERF number (e.g. 3864)" required autocomplete="off"/>
+                <input type="text" name="suburb" placeholder="Suburb (optional, e.g. Summerstrand)" autocomplete="off"/>
+                <button type="submit">Search NMBM Property</button>
+            </form>
+            <div class="or-divider">-- or search another city --</div>
+            <div class="other-cities">
+                <a href="/joburg-lookup" class="city-link">Johannesburg</a>
+                <a href="/capetown-lookup" class="city-link">Cape Town</a>
+            </div>
         </div>
-
-        <p class="trust-note" style="margin-top: 24px;">
-            Used for preliminary zoning analysis and feasibility screening.
-        </p>
-
-        <p style="margin-top: 12px; font-size: 12px; color: #aaa;">
-            Currently covering Gqeberha, Johannesburg and Cape Town · More municipalities coming soon
-        </p>
+        <div class="home-footer">
+            <p>Used for preliminary zoning analysis and feasibility screening.<br>Currently covering Gqeberha, Johannesburg and Cape Town. More municipalities coming soon.</p>
+            <p class="company">Regulo Systems (Pty) Ltd</p>
+        </div>
     </div>
 </body>
 </html>

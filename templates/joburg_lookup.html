@@ -104,7 +104,7 @@
             margin-left: 2px;
         }
 
-        .form-group input,
+        .form-group input:not([type="checkbox"]),
         .form-group select {
             width: 100%;
             padding: 12px 14px;
@@ -115,8 +115,8 @@
             background: #fff;
             box-sizing: border-box;
             transition: border-color 0.2s;
-            appearance: none;
-            -webkit-appearance: none;
+            appearance: none; /* select only */
+            -webkit-appearance: none; /* select only */
         }
 
         .form-group input:focus,
