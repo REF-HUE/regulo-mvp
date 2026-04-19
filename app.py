@@ -953,7 +953,7 @@ def build_pdf(p):
     else:
         details.append(["Floor Area Ratio (est.)", str(p.get('floor_area_ratio', 'N/A'))])
 
-    tbl = Table(details, colWidths=[60*mm, 110*mm])
+    tbl = Table(details, colWidths=[55*mm, 115*mm])
     tbl.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), LIGHT),
         ('FONTNAME',   (0, 0), (0, -1), 'Helvetica-Bold'),
