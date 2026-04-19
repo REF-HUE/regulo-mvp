@@ -1026,7 +1026,7 @@ def build_pdf(p):
 
     score_data = [[
         Paragraph(f"<font size=28><b>{grade}</b></font>", ParagraphStyle(
-            'Grade', parent=styles['Normal'], textColor=grade_color, alignment=TA_CENTER
+            'Grade', parent=styles['Normal'], textColor=grade_color, alignment=TA_CENTER, leading=34
         )),
         Paragraph(
             f"<b>{score}/100 — {grade_text}</b><br/>"
