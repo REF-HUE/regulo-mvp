@@ -391,7 +391,7 @@ BOT_SIGNATURES = [
     'facebookexternalhit', 'twitterbot', 'linkedinbot', 'whatsapp',
     'telegrambot', 'discordbot', 'bingpreview', 'googlebot',
     'yandexbot', 'baiduspider', 'duckduckbot', 'semrushbot',
-    'ahrefsbot', 'mj12bot', 'dotbot', 'petalbot',
+    'ahrefsbot', 'mj12bot', 'dotbot', 'petalbot', 'go-http-client',
 ]
 
 
@@ -934,6 +934,7 @@ def build_pdf(p):
     details = [
         ["ERF Number",     p.get('erf_number', 'N/A')],
         ["Suburb",         p.get('suburb', 'N/A')],
+        ["City/Locality",  p.get('city', 'N/A')],
         ["Municipality",   muni_name],
         ["Zone",           p.get('zone', 'N/A')],
         ["Land Use",       p.get('land_use', 'N/A')],
