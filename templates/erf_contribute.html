@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Add ERF to Registry — Regulo Systems{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 640px; margin: 0 auto; padding: 24px 16px;">
+
+    <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #1a1a2e; margin-bottom: 8px;">ERF {{ erf_number or '—' }} not yet in our registry</h2>
+        <p style="color: #666; font-size: 14px; line-height: 1.5;">
+            Help us grow the Regulo database. Enter the zoning details below and we'll
+            generate your report — <strong>plus save this ERF so the next person gets an instant result.</strong>
+        </p>
+    </div>
+
+    {% if error %}
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; color: #991b1b; font-size: 14px;">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('erf_contribute') }}" style="display: flex; flex-direction: column; gap: 16px;">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px;">ERF Number</label>
+                <input type="text" name="erf_number" value="{{ erf_number or '' }}"
+                       style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;"
+                       placeholder="e.g. 3864" required>
+            </div>
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px;">Suburb</label>
+                <input type="text" name="suburb" value="{{ suburb or '' }}"
+                       style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;"
+                       placeholder="e.g. Central">
+            </div>
+        </div>
+
+        <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px;">
+                Zone
+                <span style="font-weight: 400; color: #666;">(from your title deed or TPS enquiry)</span>
+            </label>
+            <select name="zone" required
+                    style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; background: white; box-sizing: border-box;">
+                <option value="">— Select zone —</option>
+                {% for z in zones %}
+                <option value="{{ z }}">{{ z }}</option>
+                {% endfor %}
+            </select>
+            <p style="font-size: 12px; color: #888; margin: 4px 0 0;">
+                Tip: Check your title deed, or request a free Informal Town Planning Enquiry from NMBM.
+            </p>
+        </div>
+
+        <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px;">ERF Size (m²)</label>
+            <input type="number" name="erf_size" min="1"
+                   style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;"
+                   placeholder="e.g. 1114" required>
+        </div>
+
+        <div style="display: flex; gap: 24px;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #333; cursor: pointer;">
+                <input type="checkbox" name="heritage_overlay" style="width: 16px; height: 16px;">
+                Heritage Overlay
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #333; cursor: pointer;">
+                <input type="checkbox" name="environmental_restriction" style="width: 16px; height: 16px;">
+                Environmental Restriction
+            </label>
+        </div>
+
+        <button type="submit"
+                style="background: #4361ee; color: white; border: none; padding: 14px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s;">
+            Generate Report &amp; Save to Registry
+        </button>
+
+    </form>
+
+    <div style="margin-top: 24px; padding: 16px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+        <p style="font-size: 13px; color: #0369a1; margin: 0; line-height: 1.5;">
+            <strong>Why we ask for the zone:</strong> Municipal ERF-to-zone mappings are not publicly available as open data.
+            Every ERF you add helps build South Africa's first open zoning registry — making pre-design faster for every architect after you.
+        </p>
+    </div>
+
+    <div style="text-align: center; margin-top: 16px;">
+        <a href="{{ url_for('index') }}" style="color: #4361ee; font-size: 13px; text-decoration: none;">← Back to search</a>
+    </div>
+
+</div>
+{% endblock %}

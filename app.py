@@ -7,7 +7,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from datetime import datetime
 from feasibility import calculate_feasibility
 from johannesburg_zones import (
@@ -244,13 +244,66 @@ ZONE_DATA = {
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# AUTO-SEED ON STARTUP
+# NMBM CODE DESCRIPTIONS — building line, coverage, side/rear space codes
+# Used in Town Planning Enquiry output
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NMBM_BUILDING_LINE_CODES = {
+    "B1":  "3m from street boundary",
+    "B2":  "4.5m from street boundary",
+    "B3":  "5m from street boundary",
+    "B4":  "6m from street boundary",
+    "B5":  "7.5m from street boundary",
+    "B6":  "9m from street boundary",
+    "B7":  "10m from street boundary",
+    "B8":  "12m from street boundary",
+    "B9":  "15m from street boundary",
+    "B10": "0m (no building line)",
+    "B11": "Private garages: Nil for up to 7m, with consent (see Reg. 8.1(11)). Other Buildings: See relevant TPA or as determined by Council.",
+}
+
+NMBM_COVERAGE_CODES = {
+    "C1":  "30% on erf ≤ 2000m2, 20% on erf > 2000m2",
+    "C2":  "40% on erf ≤ 1000m2, 30% on erf > 1000m2",
+    "C3":  "50% on erf ≤ 500m2, 40% on erf > 500m2",
+    "C4":  "50%",
+    "C5":  "60% on erf ≤ 500m2, 50% on erf > 500m2",
+    "C6":  "60%",
+    "C7":  "Dwelling houses: 70% on erf ≤ 500m2 or 60% on erf 501m2–1000m2 or 50% on erf > 1000m2. Multiple dwellings & Residential: 33 1/3% plus covered parking 16 2/3%. Any other use: As specified in amendment scheme or as determined by council.",
+    "C8":  "75%",
+    "C9":  "80%",
+    "C10": "100%",
+}
+
+NMBM_SIDE_REAR_CODES = {
+    "S1":  "1.5m",
+    "S2":  "2m",
+    "S3":  "3m",
+    "S4":  "4.5m",
+    "S5":  "5m",
+    "S6":  "6m",
+    "S7":  "7.5m",
+    "S8":  "10m",
+    "S9":  "0m (no side/rear setback)",
+    "S10": "Half the height of the building, min 3m",
+    "S11": "As specified by conditions of approval",
+    "S12": "1m (or as determined by Council)",
+    "S13": "2m or half the height (whichever is greater)",
+    "S14": "3m or half the height (whichever is greater)",
+    "S15": "5m or half the height (whichever is greater), max 10m",
+    "S16": "Private garages: With consent of abutting owners. Other Buildings: As specified in amendment scheme or as determined by council.",
+}
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# AUTO-SEED ON STARTUP — properties + ERF registry
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def auto_seed():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
+    # Legacy properties table (kept for backward compat)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS properties (
         id                        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -273,19 +326,54 @@ def auto_seed():
     )
     """)
 
-    cursor.execute("DELETE FROM properties")
+    # ── NEW: ERF Registry ──────────────────────────────────────────────
+    # This is the core lookup table. Maps ERF numbers → zone info.
+    # Populated from seed data + user contributions.
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS erf_registry (
+        id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+        erf_number                TEXT NOT NULL,
+        sub_number                INTEGER DEFAULT 0,
+        municipality              TEXT NOT NULL DEFAULT 'nmbm',
+        allotment_area            TEXT,
+        suburb                    TEXT,
+        street                    TEXT,
+        area_m2                   REAL,
+        zone_key                  TEXT,
+        zone_code                 TEXT,
+        building_line_code        TEXT,
+        coverage_code             TEXT,
+        side_rear_code            TEXT,
+        height_restriction        TEXT,
+        density                   TEXT,
+        fsi                       REAL DEFAULT 0,
+        noting_sheet              TEXT,
+        proclaimed_main_road      TEXT,
+        tpa_numbers               TEXT,
+        tpd_numbers               TEXT,
+        notes                     TEXT,
+        height_zone               TEXT,
+        heritage_overlay          INTEGER DEFAULT 0,
+        environmental_restriction INTEGER DEFAULT 0,
+        source                    TEXT DEFAULT 'seed',
+        created_at                TEXT,
+        UNIQUE(erf_number, sub_number, municipality)
+    )
+    """)
 
+    # ── Seed legacy properties ─────────────────────────────────────────
+    cursor.execute("DELETE FROM properties")
     source = "NMBM Land Use Scheme V6 (January 2023)"
 
     properties = [
         (
             "3864", "Central", "Gqeberha",
-            "Business Zone 1 (BZ1) — General Business",
-            "General Business — retail, office, mixed-use",
-            "100%", 3.0, "No restriction (subject to SDF)",
-            "Street: 0m | Side: 0m | Rear: 0m",
-            1200, 100.0, 30, 0, 0,
-            "General Business zone permits the widest range of uses including retail, office, residential buildings, and mixed-use development.",
+            "Special Zone (SP)",
+            "Special — as defined by specific conditions of approval (SPURP — Parking Only)",
+            "As per conditions (C7)", 1.0, "As per conditions",
+            "As per conditions of approval (S16)",
+            1114, 50.0, 10, 0, 0,
+            "CUYLER STREET — SPECIAL PURPOSES NO.39 — PARKING ONLY. Refer TPA 699 for details. TPA 699 (Approved), TPD 207 (Approved).",
             source
         ),
         (
@@ -350,8 +438,130 @@ def auto_seed():
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, properties)
 
+    # ── Seed ERF Registry ──────────────────────────────────────────────
+    # This is the new ERF-to-zone mapping table.
+    # Start with known ERFs; grows via user contributions.
+    cursor.execute("DELETE FROM erf_registry")
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    registry_entries = [
+        # ERF 3864 — from official TPS document (image provided)
+        {
+            "erf_number": "3864", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "CENTRAL", "suburb": "Central",
+            "street": "CUYLER STREET", "area_m2": 1114.0,
+            "zone_key": "Special Zone", "zone_code": "SPURP",
+            "building_line_code": "B11", "coverage_code": "C7",
+            "side_rear_code": "S16", "height_restriction": "#",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "BO8CCX523",
+            "proclaimed_main_road": "-",
+            "tpa_numbers": "699 (Approved)",
+            "tpd_numbers": "207 (Approved)",
+            "notes": "SPECIAL PURPOSES NO.39 — PARKING ONLY. REFER TPA 699 FOR DETAILS.",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 1021 — Summerstrand
+        {
+            "erf_number": "1021", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "SUMMERSTRAND", "suburb": "Summerstrand",
+            "street": "", "area_m2": 900.0,
+            "zone_key": "General Residential Zone 2", "zone_code": "GR2",
+            "building_line_code": "B3", "coverage_code": "C8",
+            "side_rear_code": "S15", "height_restriction": "No restriction (subject to SDF)",
+            "density": "#", "fsi": 1.5,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "High-density residential zone suitable for flats, townhouses, student accommodation.",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "seed", "created_at": now,
+        },
+        # ERF 447 — Walmer
+        {
+            "erf_number": "447", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "WALMER", "suburb": "Walmer",
+            "street": "", "area_m2": 750.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "SR1",
+            "building_line_code": "B1", "coverage_code": "C5",
+            "side_rear_code": "S1", "height_restriction": "8.5m",
+            "density": "1 du per erf", "fsi": 0.6,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "Single residential zone. Heritage Overlay applies.",
+            "height_zone": "", "heritage_overlay": 1, "environmental_restriction": 0,
+            "source": "seed", "created_at": now,
+        },
+        # ERF 2230 — Newton Park
+        {
+            "erf_number": "2230", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "NEWTON PARK", "suburb": "Newton Park",
+            "street": "", "area_m2": 1500.0,
+            "zone_key": "Business Zone 2", "zone_code": "BZ2",
+            "building_line_code": "B3", "coverage_code": "C6",
+            "side_rear_code": "S15", "height_restriction": "No restriction (subject to SDF)",
+            "density": "#", "fsi": 1.5,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "Limited Business zone for low-intensity neighbourhood commercial development.",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "seed", "created_at": now,
+        },
+        # ERF 781 — Humewood
+        {
+            "erf_number": "781", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "HUMEWOOD", "suburb": "Humewood",
+            "street": "", "area_m2": 680.0,
+            "zone_key": "Single Residential Zone 2", "zone_code": "SR2",
+            "building_line_code": "B1", "coverage_code": "C9",
+            "side_rear_code": "S12", "height_restriction": "8.5m",
+            "density": "1 du per erf", "fsi": 0.8,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "Single Residential B zone with environmental restriction — proximity to coastal system.",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 1,
+            "source": "seed", "created_at": now,
+        },
+        # ERF 912 — Richmond Hill
+        {
+            "erf_number": "912", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "RICHMOND HILL", "suburb": "Richmond Hill",
+            "street": "", "area_m2": 1100.0,
+            "zone_key": "Business Zone 1", "zone_code": "BZ1",
+            "building_line_code": "B10", "coverage_code": "C10",
+            "side_rear_code": "S9", "height_restriction": "No restriction (subject to SDF)",
+            "density": "#", "fsi": 2.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "General Business zone in heritage-sensitive mixed-use precinct.",
+            "height_zone": "", "heritage_overlay": 1, "environmental_restriction": 0,
+            "source": "seed", "created_at": now,
+        },
+    ]
+
+    for entry in registry_entries:
+        cursor.execute("""
+        INSERT OR REPLACE INTO erf_registry (
+            erf_number, sub_number, municipality, allotment_area, suburb,
+            street, area_m2, zone_key, zone_code,
+            building_line_code, coverage_code, side_rear_code,
+            height_restriction, density, fsi, noting_sheet,
+            proclaimed_main_road, tpa_numbers, tpd_numbers,
+            notes, height_zone, heritage_overlay, environmental_restriction,
+            source, created_at
+        ) VALUES (
+            :erf_number, :sub_number, :municipality, :allotment_area, :suburb,
+            :street, :area_m2, :zone_key, :zone_code,
+            :building_line_code, :coverage_code, :side_rear_code,
+            :height_restriction, :density, :fsi, :noting_sheet,
+            :proclaimed_main_road, :tpa_numbers, :tpd_numbers,
+            :notes, :height_zone, :heritage_overlay, :environmental_restriction,
+            :source, :created_at
+        )
+        """, entry)
+
     conn.commit()
-    print(f"✅ Database seeded — {len(properties)} properties at {DATABASE}")
+    print(f"✅ Database seeded — {len(properties)} properties + {len(registry_entries)} ERF registry entries at {DATABASE}")
     conn.close()
 
 auto_seed()
@@ -481,7 +691,10 @@ def index():
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# NMBM SEARCH / RESULTS
+# NMBM SEARCH — ERF-first flow (NEW PRIMARY PATH)
+# Step 1: Check ERF registry for auto-resolved zone
+# Step 2: If found → result page + Town Planning Enquiry PDF
+# Step 3: If not found → minimal contribution form
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.route('/search', methods=['GET', 'POST'])
@@ -493,8 +706,76 @@ def search():
         if not erf_number:
             return render_template('index.html', error="Please enter an ERF number.")
 
+        # ── Step 1: Check ERF registry (auto-resolve) ──────────────────
         db = get_db()
 
+        if suburb:
+            registry_hit = db.execute(
+                "SELECT * FROM erf_registry WHERE erf_number = ? AND LOWER(suburb) = LOWER(?) AND municipality = 'nmbm'",
+                (erf_number, suburb)
+            ).fetchone()
+        else:
+            registry_hit = db.execute(
+                "SELECT * FROM erf_registry WHERE erf_number = ? AND municipality = 'nmbm'",
+                (erf_number,)
+            ).fetchone()
+
+        if registry_hit:
+            db.close()
+            reg = dict(registry_hit)
+            zone_key = reg.get('zone_key', '')
+            zone = ZONE_DATA.get(zone_key, {})
+
+            # Build property data from registry + zone data
+            property_data = {
+                'erf_number':               reg['erf_number'],
+                'sub_number':               reg.get('sub_number', 0),
+                'suburb':                   reg.get('suburb', 'Gqeberha'),
+                'allotment_area':           reg.get('allotment_area', ''),
+                'street':                   reg.get('street', ''),
+                'city':                     'Gqeberha',
+                'zone':                     zone.get('display', reg.get('zone_code', zone_key)),
+                'zone_code':                reg.get('zone_code', ''),
+                'land_use':                 zone.get('land_use', 'As per conditions'),
+                'coverage':                 zone.get('coverage', 'As per conditions'),
+                'coverage_numeric':         zone.get('coverage_numeric', 50.0),
+                'floor_area_ratio':         zone.get('floor_area_ratio', reg.get('fsi', 0)),
+                'height':                   zone.get('height', reg.get('height_restriction', 'As per conditions')),
+                'height_numeric':           zone.get('height_numeric', 10.0),
+                'setbacks':                 zone.get('setbacks', 'As per conditions'),
+                'erf_size':                 int(reg.get('area_m2', 0)) or 0,
+                'heritage_overlay':         reg.get('heritage_overlay', 0),
+                'environmental_restriction': reg.get('environmental_restriction', 0),
+                'notes':                    reg.get('notes', zone.get('notes', '')),
+                'data_source':              'NMBM Land Use Scheme V6 (January 2023)',
+                'is_dynamic':               False,
+                'municipality':             'nmbm',
+                'auto_resolved':            True,
+                # Town Planning Enquiry fields
+                'building_line_code':       reg.get('building_line_code', ''),
+                'coverage_code':            reg.get('coverage_code', ''),
+                'side_rear_code':           reg.get('side_rear_code', ''),
+                'height_restriction':       reg.get('height_restriction', ''),
+                'density':                  reg.get('density', ''),
+                'fsi':                      reg.get('fsi', 0),
+                'noting_sheet':             reg.get('noting_sheet', ''),
+                'proclaimed_main_road':     reg.get('proclaimed_main_road', ''),
+                'tpa_numbers':              reg.get('tpa_numbers', ''),
+                'tpd_numbers':              reg.get('tpd_numbers', ''),
+                'registry_source':          reg.get('source', ''),
+            }
+
+            score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
+            property_data['feasibility_score']      = score
+            property_data['feasibility_notes']      = notes
+            property_data['feasibility_grade']      = grade
+            property_data['feasibility_grade_text'] = grade_text
+            property_data['buildable_area']         = buildable_area
+
+            session['dynamic_property'] = property_data
+            return render_template('result.html', property=property_data)
+
+        # ── Step 2: Fallback to legacy properties table ────────────────
         if suburb:
             prop = db.execute(
                 "SELECT * FROM properties WHERE erf_number = ? AND LOWER(suburb) = LOWER(?)",
@@ -515,7 +796,8 @@ def search():
                                                  f"It is registered in {actual_suburb}. "
                                                  f"Try leaving the suburb blank, or enter \"{actual_suburb}\".")
                 else:
-                    return redirect(url_for('zone_lookup', erf_number=erf_number, suburb=suburb))
+                    return redirect(url_for('erf_contribute',
+                                            erf_number=erf_number, suburb=suburb))
         else:
             prop = db.execute(
                 "SELECT * FROM properties WHERE erf_number = ?",
@@ -524,7 +806,8 @@ def search():
             db.close()
 
             if not prop:
-                return redirect(url_for('zone_lookup', erf_number=erf_number))
+                return redirect(url_for('erf_contribute',
+                                        erf_number=erf_number))
 
         property_data = dict(prop)
         property_data['is_dynamic'] = False
@@ -543,21 +826,24 @@ def search():
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# NMBM ZONE LOOKUP — for ERFs not in database
+# ERF CONTRIBUTE — replaces old zone_lookup for NMBM
+# When ERF isn't in registry, user provides zone + size.
+# Submission is saved to erf_registry so the NEXT user gets auto-resolve.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@app.route('/zone-lookup', methods=['GET', 'POST'])
-def zone_lookup():
+@app.route('/erf-contribute', methods=['GET', 'POST'])
+def erf_contribute():
     zones = sorted(ZONE_DATA.keys())
 
     if request.method == 'GET':
         erf_number = request.args.get('erf_number', '')
         suburb     = request.args.get('suburb', '')
-        return render_template('zone_lookup.html',
+        return render_template('erf_contribute.html',
                                erf_number=erf_number,
                                suburb=suburb,
                                zones=zones)
 
+    # POST — process contribution + generate result
     erf_number  = request.form.get('erf_number', '').strip() or 'Unknown'
     suburb      = request.form.get('suburb', 'Gqeberha').strip()
     zone_key    = request.form.get('zone', '').strip()
@@ -566,7 +852,7 @@ def zone_lookup():
     enviro      = 1 if request.form.get('environmental_restriction') else 0
 
     if not zone_key or not erf_size_raw:
-        return render_template('zone_lookup.html',
+        return render_template('erf_contribute.html',
                                erf_number=erf_number, suburb=suburb, zones=zones,
                                error="Please select a zone and enter the ERF size.")
 
@@ -575,13 +861,116 @@ def zone_lookup():
         if erf_size <= 0:
             raise ValueError
     except ValueError:
-        return render_template('zone_lookup.html',
+        return render_template('erf_contribute.html',
                                erf_number=erf_number, suburb=suburb, zones=zones,
                                error="ERF size must be a positive number in m².")
 
     zone = ZONE_DATA.get(zone_key)
     if not zone:
-        return render_template('zone_lookup.html',
+        return render_template('erf_contribute.html',
+                               erf_number=erf_number, suburb=suburb, zones=zones,
+                               error="Invalid zone selected.")
+
+    # ── Save to ERF registry for future users ──────────────────────────
+    if erf_number != 'Unknown':
+        try:
+            conn = sqlite3.connect(DATABASE)
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT OR IGNORE INTO erf_registry (
+                erf_number, sub_number, municipality, allotment_area, suburb,
+                area_m2, zone_key, zone_code, notes,
+                heritage_overlay, environmental_restriction,
+                source, created_at
+            ) VALUES (?, 0, 'nmbm', ?, ?, ?, ?, ?, ?, ?, ?, 'user', ?)
+            """, (
+                erf_number,
+                suburb.upper(),
+                suburb,
+                erf_size,
+                zone_key,
+                zone_key[:2].upper() if zone_key else '',
+                zone.get('notes', ''),
+                heritage,
+                enviro,
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+    property_data = {
+        'erf_number':               erf_number,
+        'suburb':                   suburb,
+        'city':                     'Gqeberha',
+        'zone':                     zone['display'],
+        'land_use':                 zone['land_use'],
+        'coverage':                 zone['coverage'],
+        'coverage_numeric':         zone['coverage_numeric'],
+        'floor_area_ratio':         zone['floor_area_ratio'],
+        'height':                   zone['height'],
+        'height_numeric':           zone['height_numeric'],
+        'setbacks':                 zone['setbacks'],
+        'erf_size':                 erf_size,
+        'heritage_overlay':         heritage,
+        'environmental_restriction': enviro,
+        'notes':                    zone['notes'],
+        'data_source':              'NMBM Land Use Scheme V6 (January 2023)',
+        'is_dynamic':               True,
+        'municipality':             'nmbm',
+    }
+
+    score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
+    property_data['feasibility_score']      = score
+    property_data['feasibility_notes']      = notes
+    property_data['feasibility_grade']      = grade
+    property_data['feasibility_grade_text'] = grade_text
+    property_data['buildable_area']         = buildable_area
+
+    session['dynamic_property'] = property_data
+    return render_template('result.html', property=property_data)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# LEGACY ZONE LOOKUP — redirect to new contribute page
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.route('/zone-lookup', methods=['GET', 'POST'])
+def zone_lookup():
+    """Backward compat — redirect to new ERF contribute flow."""
+    if request.method == 'GET':
+        erf_number = request.args.get('erf_number', '')
+        suburb     = request.args.get('suburb', '')
+        return redirect(url_for('erf_contribute',
+                                erf_number=erf_number, suburb=suburb))
+
+    # POST — handle the old form submission as before for compat
+    zones = sorted(ZONE_DATA.keys())
+    erf_number  = request.form.get('erf_number', '').strip() or 'Unknown'
+    suburb      = request.form.get('suburb', 'Gqeberha').strip()
+    zone_key    = request.form.get('zone', '').strip()
+    erf_size_raw = request.form.get('erf_size', '').strip()
+    heritage    = 1 if request.form.get('heritage_overlay') else 0
+    enviro      = 1 if request.form.get('environmental_restriction') else 0
+
+    if not zone_key or not erf_size_raw:
+        return render_template('erf_contribute.html',
+                               erf_number=erf_number, suburb=suburb, zones=zones,
+                               error="Please select a zone and enter the ERF size.")
+
+    try:
+        erf_size = int(erf_size_raw)
+        if erf_size <= 0:
+            raise ValueError
+    except ValueError:
+        return render_template('erf_contribute.html',
+                               erf_number=erf_number, suburb=suburb, zones=zones,
+                               error="ERF size must be a positive number in m².")
+
+    zone = ZONE_DATA.get(zone_key)
+    if not zone:
+        return render_template('erf_contribute.html',
                                erf_number=erf_number, suburb=suburb, zones=zones,
                                error="Invalid zone selected.")
 
@@ -618,17 +1007,95 @@ def zone_lookup():
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# JOHANNESBURG SEARCH
+# JOHANNESBURG SEARCH — ERF-first flow (same pattern as NMBM)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.route('/joburg', methods=['GET'])
 def joburg_index():
-    """Redirect to Joburg zone lookup form."""
+    """Redirect to Joburg search/lookup."""
     return redirect(url_for('joburg_lookup'))
+
+
+@app.route('/joburg-search', methods=['POST'])
+def joburg_search():
+    """ERF-first search for Johannesburg — checks registry before contribute."""
+    erf_number = request.form.get('erf_number', '').strip()
+    suburb     = request.form.get('suburb', '').strip()
+
+    if not erf_number:
+        return redirect(url_for('joburg_lookup'))
+
+    # Check ERF registry for Joburg
+    db = get_db()
+    if suburb:
+        registry_hit = db.execute(
+            "SELECT * FROM erf_registry WHERE erf_number = ? AND LOWER(suburb) = LOWER(?) AND municipality = 'johannesburg'",
+            (erf_number, suburb)
+        ).fetchone()
+    else:
+        registry_hit = db.execute(
+            "SELECT * FROM erf_registry WHERE erf_number = ? AND municipality = 'johannesburg'",
+            (erf_number,)
+        ).fetchone()
+    db.close()
+
+    if registry_hit:
+        reg = dict(registry_hit)
+        zone_key    = reg.get('zone_key', '')
+        height_zone = reg.get('height_zone', 'A')
+        erf_size    = int(reg.get('area_m2', 0)) or 0
+
+        params = get_joburg_zone_params(zone_key, height_zone)
+        if not params:
+            return redirect(url_for('joburg_contribute',
+                                    erf_number=erf_number, suburb=suburb))
+
+        max_floor_space, coverage_pct, formula = calculate_joburg_floor_space(zone_key, height_zone, erf_size)
+
+        property_data = {
+            'erf_number':               reg['erf_number'],
+            'suburb':                   reg.get('suburb', 'Johannesburg'),
+            'city':                     'Johannesburg',
+            'zone':                     params['zone_display'],
+            'land_use':                 params['land_use'],
+            'coverage':                 f"{params['coverage']}%",
+            'coverage_numeric':         float(params['coverage']),
+            'floor_area_ratio':         params['far'],
+            'height':                   params['height'],
+            'height_numeric':           params['height_numeric'],
+            'setbacks':                 params['setbacks'],
+            'erf_size':                 erf_size,
+            'heritage_overlay':         reg.get('heritage_overlay', 0),
+            'environmental_restriction': reg.get('environmental_restriction', 0),
+            'notes':                    reg.get('notes', params['notes']),
+            'data_source':              JOBURG_DATA_SOURCE,
+            'is_dynamic':               False,
+            'municipality':             'johannesburg',
+            'auto_resolved':            True,
+            'height_zone':              height_zone,
+            'height_zone_desc':         params['height_zone_desc'],
+            'joburg_formula':           formula,
+            'registry_source':          reg.get('source', ''),
+        }
+
+        score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
+        property_data['feasibility_score']      = score
+        property_data['feasibility_notes']      = notes
+        property_data['feasibility_grade']      = grade
+        property_data['feasibility_grade_text'] = grade_text
+        property_data['buildable_area']         = buildable_area
+
+        session['dynamic_property'] = property_data
+        return render_template('result.html', property=property_data)
+
+    # Not in registry — redirect to contribute form
+    return redirect(url_for('joburg_contribute',
+                            erf_number=erf_number, suburb=suburb))
 
 
 @app.route('/joburg-lookup', methods=['GET', 'POST'])
 def joburg_lookup():
+    """Joburg landing page — ERF search + fallback to manual lookup."""
     zones = sorted(JOBURG_ZONES.keys())
     height_zones = HEIGHT_ZONES
 
@@ -641,7 +1108,7 @@ def joburg_lookup():
                                zones=zones,
                                height_zones=height_zones)
 
-    # POST — generate Johannesburg result
+    # POST — manual zone selection (legacy path, still works)
     erf_number   = request.form.get('erf_number', '').strip() or 'Unknown'
     suburb       = request.form.get('suburb', '').strip() or 'Johannesburg'
     zone_key     = request.form.get('zone', '').strip()
@@ -716,18 +1183,215 @@ def joburg_lookup():
     return render_template('result.html', property=property_data)
 
 
+@app.route('/joburg-contribute', methods=['GET', 'POST'])
+def joburg_contribute():
+    """Joburg ERF contribution — user provides zone + height zone + size."""
+    zones = sorted(JOBURG_ZONES.keys())
+    height_zones = HEIGHT_ZONES
+
+    if request.method == 'GET':
+        erf_number = request.args.get('erf_number', '')
+        suburb     = request.args.get('suburb', '')
+        return render_template('joburg_contribute.html',
+                               erf_number=erf_number,
+                               suburb=suburb,
+                               zones=zones,
+                               height_zones=height_zones)
+
+    # POST — process contribution + generate result
+    erf_number   = request.form.get('erf_number', '').strip() or 'Unknown'
+    suburb       = request.form.get('suburb', '').strip() or 'Johannesburg'
+    zone_key     = request.form.get('zone', '').strip()
+    height_zone  = request.form.get('height_zone', '').strip().upper()
+    erf_size_raw = request.form.get('erf_size', '').strip()
+    heritage     = 1 if request.form.get('heritage_overlay') else 0
+    enviro       = 1 if request.form.get('environmental_restriction') else 0
+
+    if not zone_key or not height_zone or not erf_size_raw:
+        return render_template('joburg_contribute.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones, height_zones=height_zones,
+                               error="Please select a zone, height zone, and enter the ERF size.")
+
+    if height_zone not in ('A', 'B', 'C'):
+        return render_template('joburg_contribute.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones, height_zones=height_zones,
+                               error="Please select a valid Height Zone (A, B, or C).")
+
+    try:
+        erf_size = int(erf_size_raw)
+        if erf_size <= 0:
+            raise ValueError
+    except ValueError:
+        return render_template('joburg_contribute.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones, height_zones=height_zones,
+                               error="ERF size must be a positive number in m².")
+
+    params = get_joburg_zone_params(zone_key, height_zone)
+    if not params:
+        return render_template('joburg_contribute.html',
+                               erf_number=erf_number, suburb=suburb,
+                               zones=zones, height_zones=height_zones,
+                               error="Invalid zone or height zone selected.")
+
+    # ── Save to ERF registry for future users ──────────────────────────
+    if erf_number != 'Unknown':
+        try:
+            conn = sqlite3.connect(DATABASE)
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT OR IGNORE INTO erf_registry (
+                erf_number, sub_number, municipality, allotment_area, suburb,
+                area_m2, zone_key, zone_code, height_zone, notes,
+                heritage_overlay, environmental_restriction,
+                source, created_at
+            ) VALUES (?, 0, 'johannesburg', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', ?)
+            """, (
+                erf_number,
+                suburb.upper(),
+                suburb,
+                erf_size,
+                zone_key,
+                zone_key[:3].upper() if zone_key else '',
+                height_zone,
+                params.get('notes', ''),
+                heritage,
+                enviro,
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+    max_floor_space, coverage_pct, formula = calculate_joburg_floor_space(zone_key, height_zone, erf_size)
+
+    property_data = {
+        'erf_number':               erf_number,
+        'suburb':                   suburb,
+        'city':                     'Johannesburg',
+        'zone':                     params['zone_display'],
+        'land_use':                 params['land_use'],
+        'coverage':                 f"{params['coverage']}%",
+        'coverage_numeric':         float(params['coverage']),
+        'floor_area_ratio':         params['far'],
+        'height':                   params['height'],
+        'height_numeric':           params['height_numeric'],
+        'setbacks':                 params['setbacks'],
+        'erf_size':                 erf_size,
+        'heritage_overlay':         heritage,
+        'environmental_restriction': enviro,
+        'notes':                    params['notes'],
+        'data_source':              JOBURG_DATA_SOURCE,
+        'is_dynamic':               True,
+        'municipality':             'johannesburg',
+        'height_zone':              height_zone,
+        'height_zone_desc':         params['height_zone_desc'],
+        'joburg_formula':           formula,
+    }
+
+    score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
+    property_data['feasibility_score']      = score
+    property_data['feasibility_notes']      = notes
+    property_data['feasibility_grade']      = grade
+    property_data['feasibility_grade_text'] = grade_text
+    property_data['buildable_area']         = buildable_area
+
+    session['dynamic_property'] = property_data
+    return render_template('result.html', property=property_data)
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CAPE TOWN SEARCH
+# CAPE TOWN SEARCH — ERF-first flow (same pattern as NMBM)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.route('/capetown', methods=['GET'])
 def capetown_index():
-    """Redirect to Cape Town zone lookup form."""
+    """Redirect to Cape Town search/lookup."""
     return redirect(url_for('capetown_lookup'))
+
+
+@app.route('/capetown-search', methods=['POST'])
+def capetown_search():
+    """ERF-first search for Cape Town — checks registry before contribute."""
+    erf_number = request.form.get('erf_number', '').strip()
+    suburb     = request.form.get('suburb', '').strip()
+
+    if not erf_number:
+        return redirect(url_for('capetown_lookup'))
+
+    # Check ERF registry for Cape Town
+    db = get_db()
+    if suburb:
+        registry_hit = db.execute(
+            "SELECT * FROM erf_registry WHERE erf_number = ? AND LOWER(suburb) = LOWER(?) AND municipality = 'capetown'",
+            (erf_number, suburb)
+        ).fetchone()
+    else:
+        registry_hit = db.execute(
+            "SELECT * FROM erf_registry WHERE erf_number = ? AND municipality = 'capetown'",
+            (erf_number,)
+        ).fetchone()
+    db.close()
+
+    if registry_hit:
+        reg = dict(registry_hit)
+        zone_key = reg.get('zone_key', '')
+        erf_size = int(reg.get('area_m2', 0)) or 0
+
+        params = get_capetown_zone_params(zone_key, erf_size)
+        if not params:
+            return redirect(url_for('capetown_contribute',
+                                    erf_number=erf_number, suburb=suburb))
+
+        max_floor_space, coverage_pct, formula = calculate_capetown_floor_space(zone_key, erf_size)
+        floor_factor = params.get('floor_factor') or 0
+        coverage = params.get('coverage')
+
+        property_data = {
+            'erf_number':               reg['erf_number'],
+            'suburb':                   reg.get('suburb', 'Cape Town'),
+            'city':                     'Cape Town',
+            'zone':                     params['zone_display'],
+            'land_use':                 params['land_use'],
+            'coverage':                 f"{coverage}%" if coverage else "N/a (floor factor controls)",
+            'coverage_numeric':         float(coverage) if coverage else 60.0,
+            'floor_area_ratio':         floor_factor,
+            'height':                   params['height'],
+            'height_numeric':           params['height_numeric'],
+            'setbacks':                 params['setbacks'],
+            'erf_size':                 erf_size,
+            'heritage_overlay':         reg.get('heritage_overlay', 0),
+            'environmental_restriction': reg.get('environmental_restriction', 0),
+            'notes':                    reg.get('notes', params['notes']),
+            'data_source':              CAPETOWN_DATA_SOURCE,
+            'is_dynamic':               False,
+            'municipality':             'capetown',
+            'auto_resolved':            True,
+            'capetown_formula':         formula,
+            'registry_source':          reg.get('source', ''),
+        }
+
+        score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
+        property_data['feasibility_score']      = score
+        property_data['feasibility_notes']      = notes
+        property_data['feasibility_grade']      = grade
+        property_data['feasibility_grade_text'] = grade_text
+        property_data['buildable_area']         = buildable_area
+
+        session['dynamic_property'] = property_data
+        return render_template('result.html', property=property_data)
+
+    # Not in registry — redirect to contribute form
+    return redirect(url_for('capetown_contribute',
+                            erf_number=erf_number, suburb=suburb))
 
 
 @app.route('/capetown-lookup', methods=['GET', 'POST'])
 def capetown_lookup():
+    """Cape Town landing page — ERF search + fallback to manual lookup."""
     zones = sorted(CAPETOWN_ZONES.keys())
 
     if request.method == 'GET':
@@ -738,7 +1402,7 @@ def capetown_lookup():
                                suburb=suburb,
                                zones=zones)
 
-    # POST — generate Cape Town result
+    # POST — manual zone selection (legacy path, still works)
     erf_number   = request.form.get('erf_number', '').strip() or 'Unknown'
     suburb       = request.form.get('suburb', '').strip() or 'Cape Town'
     zone_key     = request.form.get('zone', '').strip()
@@ -770,8 +1434,113 @@ def capetown_lookup():
                                error="Invalid zone selected.")
 
     max_floor_space, coverage_pct, formula = calculate_capetown_floor_space(zone_key, erf_size)
+    floor_factor = params.get('floor_factor') or 0
+    coverage = params.get('coverage')
 
-    # Determine coverage and floor factor for the property data
+    property_data = {
+        'erf_number':               erf_number,
+        'suburb':                   suburb,
+        'city':                     'Cape Town',
+        'zone':                     params['zone_display'],
+        'land_use':                 params['land_use'],
+        'coverage':                 f"{coverage}%" if coverage else "N/a (floor factor controls)",
+        'coverage_numeric':         float(coverage) if coverage else 60.0,
+        'floor_area_ratio':         floor_factor,
+        'height':                   params['height'],
+        'height_numeric':           params['height_numeric'],
+        'setbacks':                 params['setbacks'],
+        'erf_size':                 erf_size,
+        'heritage_overlay':         heritage,
+        'environmental_restriction': enviro,
+        'notes':                    params['notes'],
+        'data_source':              CAPETOWN_DATA_SOURCE,
+        'is_dynamic':               True,
+        'municipality':             'capetown',
+        'capetown_formula':         formula,
+    }
+
+    score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
+    property_data['feasibility_score']      = score
+    property_data['feasibility_notes']      = notes
+    property_data['feasibility_grade']      = grade
+    property_data['feasibility_grade_text'] = grade_text
+    property_data['buildable_area']         = buildable_area
+
+    session['dynamic_property'] = property_data
+    return render_template('result.html', property=property_data)
+
+
+@app.route('/capetown-contribute', methods=['GET', 'POST'])
+def capetown_contribute():
+    """Cape Town ERF contribution — user provides zone + size."""
+    zones = sorted(CAPETOWN_ZONES.keys())
+
+    if request.method == 'GET':
+        erf_number = request.args.get('erf_number', '')
+        suburb     = request.args.get('suburb', '')
+        return render_template('capetown_contribute.html',
+                               erf_number=erf_number,
+                               suburb=suburb,
+                               zones=zones)
+
+    # POST — process contribution + generate result
+    erf_number   = request.form.get('erf_number', '').strip() or 'Unknown'
+    suburb       = request.form.get('suburb', '').strip() or 'Cape Town'
+    zone_key     = request.form.get('zone', '').strip()
+    erf_size_raw = request.form.get('erf_size', '').strip()
+    heritage     = 1 if request.form.get('heritage_overlay') else 0
+    enviro       = 1 if request.form.get('environmental_restriction') else 0
+
+    if not zone_key or not erf_size_raw:
+        return render_template('capetown_contribute.html',
+                               erf_number=erf_number, suburb=suburb, zones=zones,
+                               error="Please select a zone and enter the ERF size.")
+
+    try:
+        erf_size = int(erf_size_raw)
+        if erf_size <= 0:
+            raise ValueError
+    except ValueError:
+        return render_template('capetown_contribute.html',
+                               erf_number=erf_number, suburb=suburb, zones=zones,
+                               error="ERF size must be a positive number in m².")
+
+    params = get_capetown_zone_params(zone_key, erf_size)
+    if not params:
+        return render_template('capetown_contribute.html',
+                               erf_number=erf_number, suburb=suburb, zones=zones,
+                               error="Invalid zone selected.")
+
+    # ── Save to ERF registry for future users ──────────────────────────
+    if erf_number != 'Unknown':
+        try:
+            conn = sqlite3.connect(DATABASE)
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT OR IGNORE INTO erf_registry (
+                erf_number, sub_number, municipality, allotment_area, suburb,
+                area_m2, zone_key, zone_code, notes,
+                heritage_overlay, environmental_restriction,
+                source, created_at
+            ) VALUES (?, 0, 'capetown', ?, ?, ?, ?, ?, ?, ?, ?, 'user', ?)
+            """, (
+                erf_number,
+                suburb.upper(),
+                suburb,
+                erf_size,
+                zone_key,
+                zone_key[:3].upper() if zone_key else '',
+                params.get('notes', ''),
+                heritage,
+                enviro,
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+    max_floor_space, coverage_pct, formula = calculate_capetown_floor_space(zone_key, erf_size)
     floor_factor = params.get('floor_factor') or 0
     coverage = params.get('coverage')
 
@@ -844,7 +1613,7 @@ def generate_pdf(erf_number):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PDF REPORT — dynamic (NMBM zone lookup + Johannesburg)
+# PDF REPORT — dynamic (NMBM zone lookup + Johannesburg + Cape Town)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.route('/generate_pdf_dynamic')
@@ -866,7 +1635,336 @@ def generate_pdf_dynamic():
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PDF BUILDER — supports both NMBM and Johannesburg
+# TOWN PLANNING ENQUIRY PDF — NEW municipal-style output
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.route('/generate_tpe/<erf_number>')
+def generate_tpe(erf_number):
+    """Generate Town Planning Enquiry PDF for a registry ERF."""
+    db = get_db()
+    reg = db.execute(
+        "SELECT * FROM erf_registry WHERE erf_number = ? AND municipality = 'nmbm'",
+        (erf_number,)
+    ).fetchone()
+    db.close()
+
+    if not reg:
+        return "ERF not found in registry", 404
+
+    reg_data = dict(reg)
+    pdf_buffer = build_town_planning_enquiry_pdf(reg_data)
+
+    return send_file(
+        pdf_buffer,
+        as_attachment=True,
+        download_name=f"Regulo_TPE_ERF{erf_number}.pdf",
+        mimetype='application/pdf'
+    )
+
+
+@app.route('/generate_tpe_dynamic')
+def generate_tpe_dynamic():
+    """Generate Town Planning Enquiry PDF from session data."""
+    property_data = session.get('dynamic_property')
+
+    if not property_data:
+        return redirect(url_for('index'))
+
+    # Build a registry-style dict from the property data
+    reg_data = {
+        'erf_number':           property_data.get('erf_number', 'Unknown'),
+        'sub_number':           property_data.get('sub_number', 0),
+        'allotment_area':       property_data.get('allotment_area', property_data.get('suburb', '').upper()),
+        'suburb':               property_data.get('suburb', ''),
+        'street':               property_data.get('street', ''),
+        'area_m2':              property_data.get('erf_size', 0),
+        'zone_key':             property_data.get('zone', ''),
+        'zone_code':            property_data.get('zone_code', ''),
+        'building_line_code':   property_data.get('building_line_code', ''),
+        'coverage_code':        property_data.get('coverage_code', ''),
+        'side_rear_code':       property_data.get('side_rear_code', ''),
+        'height_restriction':   property_data.get('height_restriction', property_data.get('height', '')),
+        'density':              property_data.get('density', ''),
+        'fsi':                  property_data.get('fsi', property_data.get('floor_area_ratio', 0)),
+        'noting_sheet':         property_data.get('noting_sheet', ''),
+        'proclaimed_main_road': property_data.get('proclaimed_main_road', '-'),
+        'tpa_numbers':          property_data.get('tpa_numbers', ''),
+        'tpd_numbers':          property_data.get('tpd_numbers', ''),
+        'notes':                property_data.get('notes', ''),
+        'heritage_overlay':     property_data.get('heritage_overlay', 0),
+        'environmental_restriction': property_data.get('environmental_restriction', 0),
+        'source':               property_data.get('registry_source', 'user'),
+    }
+
+    pdf_buffer = build_town_planning_enquiry_pdf(reg_data)
+    erf = property_data.get('erf_number', 'manual')
+
+    return send_file(
+        pdf_buffer,
+        as_attachment=True,
+        download_name=f"Regulo_TPE_ERF{erf}.pdf",
+        mimetype='application/pdf'
+    )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TOWN PLANNING ENQUIRY PDF BUILDER
+# Matches the NMBM TPS document format
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def build_town_planning_enquiry_pdf(reg):
+    """Build a Town Planning Enquiry PDF matching municipal format."""
+    buffer = io.BytesIO()
+    doc    = SimpleDocTemplate(buffer, pagesize=A4,
+                               topMargin=15*mm, bottomMargin=15*mm,
+                               leftMargin=15*mm, rightMargin=15*mm)
+
+    styles  = getSampleStyleSheet()
+    content = []
+
+    DARK   = colors.HexColor('#1a1a2e')
+    BLUE   = colors.HexColor('#4361ee')
+    LIGHT  = colors.HexColor('#f0f2f5')
+    BORDER = colors.HexColor('#cccccc')
+
+    # ── Header ─────────────────────────────────────────────────────────
+    header_style = ParagraphStyle('Header', parent=styles['Normal'],
+                                   fontSize=10, textColor=DARK,
+                                   fontName='Helvetica-Bold',
+                                   alignment=TA_LEFT, leading=14)
+    title_style = ParagraphStyle('TPETitle', parent=styles['Normal'],
+                                  fontSize=12, textColor=DARK,
+                                  fontName='Helvetica-Bold',
+                                  alignment=TA_CENTER, spaceAfter=6)
+    label_style = ParagraphStyle('Label', parent=styles['Normal'],
+                                  fontSize=8, textColor=colors.grey,
+                                  fontName='Helvetica-Bold', leading=10)
+    value_style = ParagraphStyle('Value', parent=styles['Normal'],
+                                  fontSize=9, textColor=DARK,
+                                  fontName='Helvetica', leading=12)
+    small_style = ParagraphStyle('Small', parent=styles['Normal'],
+                                  fontSize=7.5, textColor=colors.grey,
+                                  leading=10)
+    section_style = ParagraphStyle('SectionTPE', parent=styles['Normal'],
+                                    fontSize=10, textColor=DARK,
+                                    fontName='Helvetica-Bold',
+                                    spaceBefore=10, spaceAfter=4)
+    code_style = ParagraphStyle('CodeDesc', parent=styles['Normal'],
+                                 fontSize=8, textColor=DARK,
+                                 fontName='Helvetica', leading=11,
+                                 leftIndent=20)
+    code_label = ParagraphStyle('CodeLabel', parent=styles['Normal'],
+                                 fontSize=8, textColor=DARK,
+                                 fontName='Helvetica-Bold', leading=11)
+
+    # Regulo header
+    content.append(Paragraph("REGULO SYSTEMS", header_style))
+    content.append(Paragraph(
+        "<font size=8 color='grey'>Zoning Intelligence for South African Property Professionals</font>",
+        ParagraphStyle('SubH', parent=styles['Normal'], fontSize=8,
+                       textColor=colors.grey, leading=10)
+    ))
+    content.append(HRFlowable(width="100%", thickness=1, color=BLUE, spaceAfter=8))
+
+    # Title
+    content.append(Paragraph("TOWN PLANNING ENQUIRY", title_style))
+    content.append(Paragraph(
+        f"<font size=8 color='grey'>Generated: {datetime.now().strftime('%d %B %Y at %H:%M')} "
+        f"| Nelson Mandela Bay Municipality</font>",
+        ParagraphStyle('DateLine', parent=styles['Normal'], fontSize=8,
+                       textColor=colors.grey, alignment=TA_CENTER, spaceAfter=8)
+    ))
+
+    # ── Property Details Table (3-column layout like TPS) ──────────────
+    erf      = reg.get('erf_number', 'N/A')
+    sub      = str(reg.get('sub_number', 0))
+    allot    = reg.get('allotment_area', '-')
+    area     = reg.get('area_m2', 0)
+    area_str = f"{area:,.2f}" if area else '-'
+    noting   = reg.get('noting_sheet', '-') or '-'
+    road     = reg.get('proclaimed_main_road', '-') or '-'
+    street   = reg.get('street', '-') or '-'
+
+    details_data = [
+        [
+            Paragraph("<b>Allotment Area:</b>", label_style),
+            Paragraph(allot, value_style),
+            Paragraph("<b>Erf Number:</b>", label_style),
+            Paragraph(erf, value_style),
+            Paragraph("<b>Sub Number:</b>", label_style),
+            Paragraph(sub, value_style),
+        ],
+        [
+            Paragraph("<b>Street:</b>", label_style),
+            Paragraph(street, value_style),
+            Paragraph("<b>Area (m2):</b>", label_style),
+            Paragraph(area_str, value_style),
+            Paragraph("<b>Noting Sheet:</b>", label_style),
+            Paragraph(noting, value_style),
+        ],
+        [
+            Paragraph("<b>Proclaimed Road:</b>", label_style),
+            Paragraph(road, value_style),
+            Paragraph("", label_style),
+            Paragraph("", value_style),
+            Paragraph("", label_style),
+            Paragraph("", value_style),
+        ],
+    ]
+
+    col_w = [28*mm, 30*mm, 25*mm, 25*mm, 25*mm, 27*mm]
+    details_tbl = Table(details_data, colWidths=col_w)
+    details_tbl.setStyle(TableStyle([
+        ('GRID',       (0, 0), (-1, -1), 0.5, BORDER),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('FONTSIZE',   (0, 0), (-1, -1), 8),
+        ('PADDING',    (0, 0), (-1, -1), 4),
+        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    content.append(details_tbl)
+    content.append(Spacer(1, 6))
+
+    # ── Zone Information Table ─────────────────────────────────────────
+    content.append(Paragraph("Zone Information:", section_style))
+
+    zone_code = reg.get('zone_code', '-') or '-'
+    bl_code   = reg.get('building_line_code', '-') or '-'
+    cov_code  = reg.get('coverage_code', '-') or '-'
+    sr_code   = reg.get('side_rear_code', '-') or '-'
+    height_r  = reg.get('height_restriction', '-') or '-'
+    density   = reg.get('density', '-') or '-'
+    fsi       = reg.get('fsi', 0)
+    fsi_str   = f"{fsi:.2f}" if fsi else '0.00'
+
+    zone_header = [
+        Paragraph("<b>Zone</b>", label_style),
+        Paragraph("<b>Building Line</b>", label_style),
+        Paragraph("<b>Coverage</b>", label_style),
+        Paragraph("<b>Side &amp; Rear Space</b>", label_style),
+        Paragraph("<b>Height Restriction</b>", label_style),
+        Paragraph("<b>Density</b>", label_style),
+        Paragraph("<b>FSI</b>", label_style),
+        Paragraph("<b>Area (m2)</b>", label_style),
+    ]
+    zone_values = [
+        Paragraph(zone_code, value_style),
+        Paragraph(bl_code, value_style),
+        Paragraph(cov_code, value_style),
+        Paragraph(sr_code, value_style),
+        Paragraph(height_r, value_style),
+        Paragraph(density, value_style),
+        Paragraph(fsi_str, value_style),
+        Paragraph(area_str, value_style),
+    ]
+
+    zone_col_w = [22*mm, 22*mm, 18*mm, 28*mm, 28*mm, 18*mm, 14*mm, 22*mm]
+    zone_tbl = Table([zone_header, zone_values], colWidths=zone_col_w)
+    zone_tbl.setStyle(TableStyle([
+        ('GRID',       (0, 0), (-1, -1), 0.5, BORDER),
+        ('BACKGROUND', (0, 0), (-1, 0), LIGHT),
+        ('FONTSIZE',   (0, 0), (-1, -1), 8),
+        ('PADDING',    (0, 0), (-1, -1), 4),
+        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    content.append(zone_tbl)
+    content.append(Spacer(1, 6))
+
+    # ── Code Descriptions ──────────────────────────────────────────────
+    content.append(Paragraph("<u>Code Descriptions:</u>", section_style))
+
+    if bl_code and bl_code in NMBM_BUILDING_LINE_CODES:
+        content.append(Paragraph(f"<b>{bl_code}</b>", code_label))
+        content.append(Paragraph(NMBM_BUILDING_LINE_CODES[bl_code], code_style))
+        content.append(Spacer(1, 2))
+
+    if cov_code and cov_code in NMBM_COVERAGE_CODES:
+        content.append(Paragraph(f"<b>{cov_code}</b>", code_label))
+        content.append(Paragraph(NMBM_COVERAGE_CODES[cov_code], code_style))
+        content.append(Spacer(1, 2))
+
+    if sr_code and sr_code in NMBM_SIDE_REAR_CODES:
+        content.append(Paragraph(f"<b>{sr_code}</b>", code_label))
+        content.append(Paragraph(NMBM_SIDE_REAR_CODES[sr_code], code_style))
+        content.append(Spacer(1, 2))
+
+    content.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=6))
+
+    # ── TPA / TPD Numbers ──────────────────────────────────────────────
+    tpa = reg.get('tpa_numbers', '') or ''
+    tpd = reg.get('tpd_numbers', '') or ''
+
+    if tpa:
+        content.append(Paragraph("<b><u>TPA Numbers</u></b>", section_style))
+        content.append(Paragraph(tpa, value_style))
+        content.append(Spacer(1, 4))
+
+    if tpd:
+        content.append(Paragraph("<b><u>TPD Numbers</u></b>", section_style))
+        content.append(Paragraph(tpd, value_style))
+        content.append(Spacer(1, 4))
+
+    content.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=6))
+
+    # ── Notes ──────────────────────────────────────────────────────────
+    notes_text = reg.get('notes', '')
+    if notes_text:
+        content.append(Paragraph("<b><u>Notes:</u></b>", section_style))
+        content.append(Paragraph(reg.get('allotment_area', ''), value_style))
+        content.append(Paragraph(notes_text, value_style))
+        content.append(Spacer(1, 4))
+
+    # ── Heritage / Environmental flags ─────────────────────────────────
+    if reg.get('heritage_overlay'):
+        content.append(Spacer(1, 4))
+        content.append(Paragraph(
+            "<b>Heritage Overlay:</b> This property falls within a Heritage Overlay. "
+            "Additional approvals from SAHRA or the local heritage authority may be required.",
+            ParagraphStyle('Heritage', parent=styles['Normal'], fontSize=9,
+                           textColor=colors.HexColor('#8B4513'), leading=12)
+        ))
+
+    if reg.get('environmental_restriction'):
+        content.append(Spacer(1, 4))
+        content.append(Paragraph(
+            "<b>Environmental Restriction:</b> This property has environmental restrictions. "
+            "An Environmental Impact Assessment (EIA) may be required before development.",
+            ParagraphStyle('Enviro', parent=styles['Normal'], fontSize=9,
+                           textColor=colors.HexColor('#2E7D32'), leading=12)
+        ))
+
+    # ── Footer / Disclaimer ────────────────────────────────────────────
+    content.append(Spacer(1, 20))
+    content.append(HRFlowable(width="100%", thickness=0.5, color=BORDER))
+    content.append(Spacer(1, 4))
+
+    source_text = reg.get('source', 'seed')
+    source_label = "NMBM TPS (official)" if "official" in source_text.lower() else f"Regulo database ({source_text})"
+
+    disclaimer = ParagraphStyle('Disclaimer', parent=styles['Normal'],
+                                fontSize=7, textColor=colors.grey, leading=10)
+    content.append(Paragraph(
+        f"<b>Source:</b> {source_label} | "
+        f"<b>Generated by:</b> Regulo Systems (Pty) Ltd | "
+        f"<b>Date:</b> {datetime.now().strftime('%d %B %Y')}",
+        disclaimer
+    ))
+    content.append(Spacer(1, 4))
+    content.append(Paragraph(
+        "<b>Disclaimer:</b> This document is generated from municipal zoning data and is intended for "
+        "informational purposes only. It does not constitute an official Town Planning Enquiry from the municipality. "
+        "Always verify constraints with the relevant municipal Town Planning Department before making development decisions. "
+        "Regulo Systems (Pty) Ltd accepts no liability for decisions made based on this report.",
+        disclaimer
+    ))
+
+    doc.build(content)
+    buffer.seek(0)
+    return buffer
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PDF BUILDER — original Zoning Intelligence Report
+# Supports NMBM, Johannesburg, Cape Town
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def build_pdf(p):
@@ -929,12 +2027,25 @@ def build_pdf(p):
     ))
     content.append(HRFlowable(width="100%", thickness=1, color=BLUE, spaceAfter=12))
 
+    # Auto-resolved badge
+    if p.get('auto_resolved'):
+        content.append(Paragraph(
+            "<font color='#2d6a4f'><b>✓ Zone auto-resolved from ERF registry</b></font>",
+            ParagraphStyle('Badge', parent=styles['Normal'], fontSize=9,
+                           textColor=colors.HexColor('#2d6a4f'), leading=12, spaceAfter=8)
+        ))
+
     content.append(Paragraph("Property Details", section_style))
+
+    # Add locality tagline
+    locality = f"{p.get('suburb', 'N/A')}, {city_name}"
+    if p.get('allotment_area'):
+        locality = f"{p.get('allotment_area', '')} — {locality}"
 
     details = [
         ["ERF Number",     p.get('erf_number', 'N/A')],
         ["Suburb",         p.get('suburb', 'N/A')],
-        ["City/Locality",  p.get('city', 'N/A')],
+        ["City/Locality",  locality],
         ["Municipality",   muni_name],
         ["Zone",           p.get('zone', 'N/A')],
         ["Land Use",       p.get('land_use', 'N/A')],
@@ -993,7 +2104,7 @@ def build_pdf(p):
             formula_text = p['capetown_formula']
             far_note = "Floor Factor is from the City of Cape Town Zoning Scheme Regulations."
         else:
-            formula_text = f"{size} m² × {far} = {p['buildable_area']}"
+            formula_text = f"{size} m² x {far} = {p['buildable_area']}"
             far_note = "Estimated maximum gross floor area. FAR is not officially published by NMBM."
 
         ba_data = [[
@@ -1003,7 +2114,7 @@ def build_pdf(p):
                                textColor=BLUE, alignment=TA_CENTER)
             ),
             Paragraph(
-                f"<b>ERF size × FAR</b><br/>"
+                f"<b>ERF size x FAR</b><br/>"
                 f"<font size=9 color='grey'>{formula_text}<br/>"
                 f"{far_note}</font>",
                 ParagraphStyle('BAText', parent=styles['Normal'], fontSize=10, leading=15)
@@ -1088,6 +2199,34 @@ def build_pdf(p):
     doc.build(content)
     buffer.seek(0)
     return buffer
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# API — ERF Registry stats (for future dashboard / integrations)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.route('/api/registry/stats')
+def registry_stats():
+    """Return ERF registry statistics as JSON."""
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    total = cursor.execute("SELECT COUNT(*) FROM erf_registry").fetchone()[0]
+    by_source = cursor.execute(
+        "SELECT source, COUNT(*) as count FROM erf_registry GROUP BY source"
+    ).fetchall()
+    by_municipality = cursor.execute(
+        "SELECT municipality, COUNT(*) as count FROM erf_registry GROUP BY municipality"
+    ).fetchall()
+
+    conn.close()
+
+    from flask import jsonify
+    return jsonify({
+        'total_erfs': total,
+        'by_source': {row[0]: row[1] for row in by_source},
+        'by_municipality': {row[0]: row[1] for row in by_municipality},
+    })
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

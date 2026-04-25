@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Johannesburg Zone Lookup — Regulo Systems</title>
+    <title>Johannesburg Zone Lookup – Regulo Systems</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         .lookup-container {
@@ -40,22 +40,108 @@
             margin-bottom: 12px;
         }
 
-        .notice-box {
-            background: #f0f4ff;
-            border-left: 4px solid #4361ee;
-            border-radius: 6px;
-            padding: 14px 18px;
-            margin-bottom: 28px;
+        .erf-search-box {
+            background: #f8faff;
+            border: 2px solid #4361ee;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
         }
 
-        .notice-box p {
+        .erf-search-box h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin: 0 0 4px 0;
+        }
+
+        .erf-search-box p {
             font-size: 13px;
-            color: #333;
-            margin: 0;
+            color: #666;
+            margin: 0 0 16px 0;
         }
 
-        .notice-box strong {
+        .erf-search-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .erf-search-row label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .erf-search-row input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid #dde3f0;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #1a1a2e;
+            background: #fff;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .erf-search-row input:focus {
+            outline: none;
+            border-color: #4361ee;
+        }
+
+        .erf-search-btn {
+            padding: 11px 24px;
+            background: #4361ee;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .erf-search-btn:hover {
+            background: #3451d1;
+        }
+
+        .registry-note {
+            font-size: 11px;
+            color: #888;
+            margin-top: 10px;
+        }
+
+        .registry-note strong {
             color: #4361ee;
+        }
+
+        .or-divider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 0 0 28px 0;
+            color: #aaa;
+            font-size: 13px;
+        }
+
+        .or-divider::before,
+        .or-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .manual-section-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 16px;
         }
 
         .height-zone-info {
@@ -115,8 +201,8 @@
             background: #fff;
             box-sizing: border-box;
             transition: border-color 0.2s;
-            appearance: none; /* select only */
-            -webkit-appearance: none; /* select only */
+            appearance: none;
+            -webkit-appearance: none;
         }
 
         .form-group input:focus,
@@ -240,6 +326,12 @@
             border-top: 1px solid #eee;
             margin: 24px 0;
         }
+
+        @media (max-width: 520px) {
+            .erf-search-row {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -248,15 +340,45 @@
 
         <div class="lookup-header">
             <span class="city-badge">🏙️ JOHANNESBURG</span>
-            <h1>Johannesburg Zone Lookup</h1>
-            <p>Enter your property's zoning details from your title deed or City of Johannesburg records to generate a full zoning analysis.</p>
+            <h1>Johannesburg Zoning Lookup</h1>
+            <p>Enter your ERF number to get an instant zoning result. If the ERF isn't in our registry yet, you'll be able to add it.</p>
         </div>
 
-        <div class="notice-box">
-            <p>
-                <strong>Where to find your zone:</strong> Check your title deed, the City of Johannesburg GIS portal, or ask your architect/town planner. The zone and height zone are listed on your municipal rates account and zoning certificate.
+        {% if error %}
+        <div class="error-box">
+            <p>⚠ {{ error }}</p>
+        </div>
+        {% endif %}
+
+        <!-- PRIMARY: ERF Search -->
+        <div class="erf-search-box">
+            <h2>Search by ERF number</h2>
+            <p>If this ERF is in our registry, you'll get an instant result with no extra input needed.</p>
+            <form action="/joburg-search" method="POST">
+                <div class="erf-search-row">
+                    <div>
+                        <label for="erf_search">ERF Number</label>
+                        <input type="text" id="erf_search" name="erf_number" value="{{ erf_number }}" placeholder="e.g. 1245" required>
+                    </div>
+                    <div>
+                        <label for="suburb_search">Suburb (optional)</label>
+                        <input type="text" id="suburb_search" name="suburb" value="{{ suburb }}" placeholder="e.g. Sandton">
+                    </div>
+                    <div>
+                        <button type="submit" class="erf-search-btn">Search →</button>
+                    </div>
+                </div>
+            </form>
+            <p class="registry-note">
+                <strong>Registry:</strong> Every ERF added by users grows the database — helping the next person get an instant result.
             </p>
         </div>
+
+        <!-- DIVIDER -->
+        <div class="or-divider">or enter details manually</div>
+
+        <!-- SECONDARY: Manual zone lookup -->
+        <p class="manual-section-header">Already know your zone and height zone? Enter details directly:</p>
 
         <div class="height-zone-info">
             <p><strong>Johannesburg uses a Height Zone system:</strong></p>
@@ -269,12 +391,6 @@
                 The height zone affects your FAR, coverage, and height allowances within the same zone category.
             </p>
         </div>
-
-        {% if error %}
-        <div class="error-box">
-            <p>⚠ {{ error }}</p>
-        </div>
-        {% endif %}
 
         <form action="/joburg-lookup" method="POST">
             <div class="form-row-3">

@@ -11,224 +11,50 @@
             margin: 0 auto;
             padding: 40px 24px;
         }
-
-        .lookup-header {
-            margin-bottom: 32px;
-        }
-
-        .lookup-header h1 {
-            font-size: 22px;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin-bottom: 8px;
-        }
-
-        .lookup-header p {
-            font-size: 14px;
-            color: #666;
-            line-height: 1.6;
-        }
-
-        .city-badge {
-            display: inline-block;
-            background: #d4edda;
-            color: #155724;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 10px;
-            margin-bottom: 12px;
-        }
-
-        .notice-box {
-            background: #f0f4ff;
-            border-left: 4px solid #4361ee;
-            border-radius: 6px;
-            padding: 14px 18px;
-            margin-bottom: 28px;
-        }
-
-        .notice-box p {
-            font-size: 13px;
-            color: #333;
-            margin: 0;
-        }
-
-        .notice-box strong {
-            color: #4361ee;
-        }
-
-        .ct-info {
-            background: #f0fdf4;
-            border-left: 4px solid #16a34a;
-            border-radius: 6px;
-            padding: 14px 18px;
-            margin-bottom: 28px;
-        }
-
-        .ct-info p {
-            font-size: 13px;
-            color: #333;
-            margin: 0 0 6px 0;
-        }
-
-        .ct-info strong {
-            color: #16a34a;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: #1a1a2e;
-            margin-bottom: 6px;
-        }
-
-        .form-group label .required {
-            color: #e63946;
-            margin-left: 2px;
-        }
-
-        .form-group input:not([type="checkbox"]),
-        .form-group select {
-            width: 100%;
-            padding: 12px 14px;
-            border: 1.5px solid #dde3f0;
-            border-radius: 8px;
-            font-size: 14px;
-            color: #1a1a2e;
-            background: #fff;
-            box-sizing: border-box;
-            transition: border-color 0.2s;
-            appearance: none;
-            -webkit-appearance: none;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #4361ee;
-        }
-
-        .select-wrapper {
-            position: relative;
-        }
-
-        .select-wrapper::after {
-            content: '▾';
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #666;
-            pointer-events: none;
-            font-size: 16px;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .form-row-3 {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 16px;
-        }
-
-        .checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .checkbox-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            cursor: pointer;
-        }
-
-        .checkbox-item input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            margin-top: 2px;
-            accent-color: #4361ee;
-            flex-shrink: 0;
-        }
-
-        .checkbox-item .checkbox-label {
-            font-size: 13px;
-            color: #444;
-            line-height: 1.5;
-        }
-
-        .checkbox-item .checkbox-label strong {
-            display: block;
-            color: #1a1a2e;
-            font-weight: 600;
-        }
-
-        .submit-btn {
-            width: 100%;
-            padding: 14px;
-            background: #4361ee;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 8px;
-            transition: background 0.2s;
-        }
-
-        .submit-btn:hover {
-            background: #3451d1;
-        }
-
-        .back-link {
-            display: inline-block;
-            margin-bottom: 24px;
-            font-size: 13px;
-            color: #4361ee;
-            text-decoration: none;
-        }
-
-        .back-link:hover {
-            text-decoration: underline;
-        }
-
-        .error-box {
-            background: #fff0f0;
-            border-left: 4px solid #e63946;
-            border-radius: 6px;
-            padding: 14px 18px;
-            margin-bottom: 24px;
-        }
-
-        .error-box p {
-            font-size: 13px;
-            color: #c0392b;
-            margin: 0;
-        }
-
-        .hint {
-            font-size: 12px;
-            color: #888;
-            margin-top: 4px;
-        }
-
-        .divider {
-            border: none;
-            border-top: 1px solid #eee;
-            margin: 24px 0;
-        }
+        .lookup-header { margin-bottom: 32px; }
+        .lookup-header h1 { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+        .lookup-header p { font-size: 14px; color: #666; line-height: 1.6; }
+        .city-badge { display: inline-block; background: #d4edda; color: #155724; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px; margin-bottom: 12px; }
+        .erf-search-box { background: #f8faff; border: 2px solid #4361ee; border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+        .erf-search-box h2 { font-size: 16px; font-weight: 700; color: #1a1a2e; margin: 0 0 4px 0; }
+        .erf-search-box p { font-size: 13px; color: #666; margin: 0 0 16px 0; }
+        .erf-search-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; }
+        .erf-search-row label { display: block; font-size: 12px; font-weight: 600; color: #333; margin-bottom: 4px; }
+        .erf-search-row input { width: 100%; padding: 11px 14px; border: 1.5px solid #dde3f0; border-radius: 8px; font-size: 14px; color: #1a1a2e; background: #fff; box-sizing: border-box; transition: border-color 0.2s; }
+        .erf-search-row input:focus { outline: none; border-color: #4361ee; }
+        .erf-search-btn { padding: 11px 24px; background: #4361ee; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+        .erf-search-btn:hover { background: #3451d1; }
+        .registry-note { font-size: 11px; color: #888; margin-top: 10px; }
+        .registry-note strong { color: #4361ee; }
+        .or-divider { display: flex; align-items: center; gap: 16px; margin: 0 0 28px 0; color: #aaa; font-size: 13px; }
+        .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: #ddd; }
+        .manual-section-header { font-size: 14px; font-weight: 600; color: #666; margin-bottom: 16px; }
+        .ct-info { background: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 6px; padding: 14px 18px; margin-bottom: 28px; }
+        .ct-info p { font-size: 13px; color: #333; margin: 0 0 6px 0; }
+        .ct-info strong { color: #16a34a; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+        .form-group label .required { color: #e63946; margin-left: 2px; }
+        .form-group input:not([type="checkbox"]), .form-group select { width: 100%; padding: 12px 14px; border: 1.5px solid #dde3f0; border-radius: 8px; font-size: 14px; color: #1a1a2e; background: #fff; box-sizing: border-box; transition: border-color 0.2s; appearance: none; -webkit-appearance: none; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #4361ee; }
+        .select-wrapper { position: relative; }
+        .select-wrapper::after { content: '▾'; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #666; pointer-events: none; font-size: 16px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .checkbox-group { display: flex; flex-direction: column; gap: 10px; }
+        .checkbox-item { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+        .checkbox-item input[type="checkbox"] { width: 16px; height: 16px; margin-top: 2px; accent-color: #4361ee; flex-shrink: 0; }
+        .checkbox-item .checkbox-label { font-size: 13px; color: #444; line-height: 1.5; }
+        .checkbox-item .checkbox-label strong { display: block; color: #1a1a2e; font-weight: 600; }
+        .submit-btn { width: 100%; padding: 14px; background: #4361ee; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background 0.2s; }
+        .submit-btn:hover { background: #3451d1; }
+        .back-link { display: inline-block; margin-bottom: 24px; font-size: 13px; color: #4361ee; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        .error-box { background: #fff0f0; border-left: 4px solid #e63946; border-radius: 6px; padding: 14px 18px; margin-bottom: 24px; }
+        .error-box p { font-size: 13px; color: #c0392b; margin: 0; }
+        .hint { font-size: 12px; color: #888; margin-top: 4px; }
+        .divider { border: none; border-top: 1px solid #eee; margin: 24px 0; }
+        @media (max-width: 520px) { .erf-search-row { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -237,21 +63,8 @@
 
         <div class="lookup-header">
             <span class="city-badge">🌿 CAPE TOWN</span>
-            <h1>Cape Town Zone Lookup</h1>
-            <p>Enter your property's zoning details from your title deed or City of Cape Town records to generate a full zoning analysis.</p>
-        </div>
-
-        <div class="notice-box">
-            <p>
-                <strong>Where to find your zone:</strong> Check your title deed, the City of Cape Town GIS viewer, or ask your architect/town planner. The zone is listed on your municipal zoning certificate.
-            </p>
-        </div>
-
-        <div class="ct-info">
-            <p><strong>Cape Town uses a Floor Factor system:</strong></p>
-            <p style="font-size: 12px; color: #555; margin-top: 4px;">
-                Floor Factor works like FAR (Floor Area Ratio) — it determines your maximum buildable floor space relative to erf size. Some zones (like SR1) have parameters that vary by erf size, which Regulo handles automatically.
-            </p>
+            <h1>Cape Town Zoning Lookup</h1>
+            <p>Enter your ERF number to get an instant zoning result. If the ERF isn't in our registry yet, you'll be able to add it.</p>
         </div>
 
         {% if error %}
@@ -259,6 +72,43 @@
             <p>⚠ {{ error }}</p>
         </div>
         {% endif %}
+
+        <!-- PRIMARY: ERF Search -->
+        <div class="erf-search-box">
+            <h2>Search by ERF number</h2>
+            <p>If this ERF is in our registry, you'll get an instant result with no extra input needed.</p>
+            <form action="/capetown-search" method="POST">
+                <div class="erf-search-row">
+                    <div>
+                        <label for="erf_search">ERF Number</label>
+                        <input type="text" id="erf_search" name="erf_number" value="{{ erf_number }}" placeholder="e.g. 5412" required>
+                    </div>
+                    <div>
+                        <label for="suburb_search">Suburb (optional)</label>
+                        <input type="text" id="suburb_search" name="suburb" value="{{ suburb }}" placeholder="e.g. Sea Point">
+                    </div>
+                    <div>
+                        <button type="submit" class="erf-search-btn">Search →</button>
+                    </div>
+                </div>
+            </form>
+            <p class="registry-note">
+                <strong>Registry:</strong> Every ERF added by users grows the database — helping the next person get an instant result.
+            </p>
+        </div>
+
+        <!-- DIVIDER -->
+        <div class="or-divider">or enter details manually</div>
+
+        <!-- SECONDARY: Manual zone lookup -->
+        <p class="manual-section-header">Already know your zone? Enter details directly:</p>
+
+        <div class="ct-info">
+            <p><strong>Cape Town uses a Floor Factor system:</strong></p>
+            <p style="font-size: 12px; color: #555; margin-top: 4px;">
+                Floor Factor works like FAR (Floor Area Ratio) — it determines your maximum buildable floor space relative to erf size. Some zones (like SR1) have parameters that vary by erf size, which Regulo handles automatically.
+            </p>
+        </div>
 
         <form action="/capetown-lookup" method="POST">
             <div class="form-row-3">
