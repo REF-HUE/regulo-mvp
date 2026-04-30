@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+content = r'''<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -62,7 +62,7 @@
     </div>
     <div class="search-card">
         <div class="muni-tabs">
-            <span class="muni-tab">Gqeberha <span class="badge badge-live">LIVE</span></span>
+            <span class="muni-tab active">Gqeberha <span class="badge badge-live">LIVE</span></span>
             <a href="/joburg-lookup" class="muni-tab">Johannesburg <span class="badge badge-live">LIVE</span></a>
             <a href="/capetown-lookup" class="muni-tab">Cape Town <span class="badge badge-new">NEW</span></a>
         </div>
@@ -96,4 +96,8 @@
     </div>
 </div>
 </body>
-</html>
+</html>'''
+
+with open('templates/index.html', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('Created templates/index.html')
