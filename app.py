@@ -537,6 +537,51 @@ def auto_seed():
             "height_zone": "", "heritage_overlay": 1, "environmental_restriction": 0,
             "source": "seed", "created_at": now,
         },
+        # ERF 5316 — Bethelsdorp (from TPS document)
+        {
+            "erf_number": "5316", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "BETHELSDORP", "suburb": "Bethelsdorp",
+            "street": "", "area_m2": 449.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "SR1",
+            "building_line_code": "", "coverage_code": "",
+            "side_rear_code": "", "height_restriction": "",
+            "density": "", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "479 (Approved)", "tpd_numbers": "",
+            "notes": "BETHELSDORP EXT 23",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 7536 — Bethelsdorp (from TPS document)
+        {
+            "erf_number": "7536", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "BETHELSDORP", "suburb": "Bethelsdorp",
+            "street": "NIMROD CRESCENT", "area_m2": 500.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "B3", "coverage_code": "70",
+            "side_rear_code": "S5", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "840 (Refused), 840-A1 (Approved)", "tpd_numbers": "",
+            "notes": "BETHELSDORP EXT 29, NIMROD CRESCENT",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 12503 — Motherwell (from TPS document)
+        {
+            "erf_number": "12503", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "MOTHERWELL", "suburb": "Motherwell",
+            "street": "75 MTATI STREET", "area_m2": 278.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "1", "coverage_code": "80",
+            "side_rear_code": "S19", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "NU 7, 75 MTATI STREET, MOTHERWELL ZONING SCHEME, WARD 31",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
     ]
 
     for entry in registry_entries:
@@ -682,6 +727,52 @@ def analytics():
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# HELPER — build property_data dict from an erf_registry row
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def build_property_from_registry(reg):
+    """Build a property_data dict from an erf_registry row dict."""
+    zone_key = reg.get('zone_key', '')
+    zone = ZONE_DATA.get(zone_key, {})
+    return {
+        'erf_number':               reg['erf_number'],
+        'sub_number':               reg.get('sub_number', 0),
+        'suburb':                   reg.get('suburb', 'Gqeberha'),
+        'allotment_area':           reg.get('allotment_area', ''),
+        'street':                   reg.get('street', ''),
+        'city':                     'Gqeberha',
+        'zone':                     zone.get('display', reg.get('zone_code', zone_key)),
+        'zone_code':                reg.get('zone_code', ''),
+        'land_use':                 zone.get('land_use', 'As per conditions'),
+        'coverage':                 zone.get('coverage', 'As per conditions'),
+        'coverage_numeric':         zone.get('coverage_numeric', 50.0),
+        'floor_area_ratio':         zone.get('floor_area_ratio', reg.get('fsi', 0)),
+        'height':                   zone.get('height', reg.get('height_restriction', 'As per conditions')),
+        'height_numeric':           zone.get('height_numeric', 10.0),
+        'setbacks':                 zone.get('setbacks', 'As per conditions'),
+        'erf_size':                 int(reg.get('area_m2', 0)) or 0,
+        'heritage_overlay':         reg.get('heritage_overlay', 0),
+        'environmental_restriction': reg.get('environmental_restriction', 0),
+        'notes':                    reg.get('notes', zone.get('notes', '')),
+        'data_source':              'NMBM Land Use Scheme V6 (January 2023)',
+        'is_dynamic':               False,
+        'municipality':             'nmbm',
+        'auto_resolved':            True,
+        'building_line_code':       reg.get('building_line_code', ''),
+        'coverage_code':            reg.get('coverage_code', ''),
+        'side_rear_code':           reg.get('side_rear_code', ''),
+        'height_restriction':       reg.get('height_restriction', ''),
+        'density':                  reg.get('density', ''),
+        'fsi':                      reg.get('fsi', 0),
+        'noting_sheet':             reg.get('noting_sheet', ''),
+        'proclaimed_main_road':     reg.get('proclaimed_main_road', ''),
+        'tpa_numbers':              reg.get('tpa_numbers', ''),
+        'tpd_numbers':              reg.get('tpd_numbers', ''),
+        'registry_source':          reg.get('source', ''),
+    }
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # HOME
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -722,48 +813,7 @@ def search():
 
         if registry_hit:
             db.close()
-            reg = dict(registry_hit)
-            zone_key = reg.get('zone_key', '')
-            zone = ZONE_DATA.get(zone_key, {})
-
-            # Build property data from registry + zone data
-            property_data = {
-                'erf_number':               reg['erf_number'],
-                'sub_number':               reg.get('sub_number', 0),
-                'suburb':                   reg.get('suburb', 'Gqeberha'),
-                'allotment_area':           reg.get('allotment_area', ''),
-                'street':                   reg.get('street', ''),
-                'city':                     'Gqeberha',
-                'zone':                     zone.get('display', reg.get('zone_code', zone_key)),
-                'zone_code':                reg.get('zone_code', ''),
-                'land_use':                 zone.get('land_use', 'As per conditions'),
-                'coverage':                 zone.get('coverage', 'As per conditions'),
-                'coverage_numeric':         zone.get('coverage_numeric', 50.0),
-                'floor_area_ratio':         zone.get('floor_area_ratio', reg.get('fsi', 0)),
-                'height':                   zone.get('height', reg.get('height_restriction', 'As per conditions')),
-                'height_numeric':           zone.get('height_numeric', 10.0),
-                'setbacks':                 zone.get('setbacks', 'As per conditions'),
-                'erf_size':                 int(reg.get('area_m2', 0)) or 0,
-                'heritage_overlay':         reg.get('heritage_overlay', 0),
-                'environmental_restriction': reg.get('environmental_restriction', 0),
-                'notes':                    reg.get('notes', zone.get('notes', '')),
-                'data_source':              'NMBM Land Use Scheme V6 (January 2023)',
-                'is_dynamic':               False,
-                'municipality':             'nmbm',
-                'auto_resolved':            True,
-                # Town Planning Enquiry fields
-                'building_line_code':       reg.get('building_line_code', ''),
-                'coverage_code':            reg.get('coverage_code', ''),
-                'side_rear_code':           reg.get('side_rear_code', ''),
-                'height_restriction':       reg.get('height_restriction', ''),
-                'density':                  reg.get('density', ''),
-                'fsi':                      reg.get('fsi', 0),
-                'noting_sheet':             reg.get('noting_sheet', ''),
-                'proclaimed_main_road':     reg.get('proclaimed_main_road', ''),
-                'tpa_numbers':              reg.get('tpa_numbers', ''),
-                'tpd_numbers':              reg.get('tpd_numbers', ''),
-                'registry_source':          reg.get('source', ''),
-            }
+            property_data = build_property_from_registry(dict(registry_hit))
 
             score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
             property_data['feasibility_score']      = score
@@ -1584,16 +1634,27 @@ def capetown_contribute():
 @app.route('/generate_pdf/<erf_number>')
 def generate_pdf(erf_number):
     db = get_db()
-    prop = db.execute(
-        "SELECT * FROM properties WHERE erf_number = ?", (erf_number,)
+
+    # Check erf_registry first (new ERFs), fall back to legacy properties table
+    reg = db.execute(
+        "SELECT * FROM erf_registry WHERE erf_number = ? AND municipality = 'nmbm'",
+        (erf_number,)
     ).fetchone()
-    db.close()
 
-    if not prop:
-        return "Property not found", 404
+    if reg:
+        db.close()
+        property_data = build_property_from_registry(dict(reg))
+    else:
+        prop = db.execute(
+            "SELECT * FROM properties WHERE erf_number = ?", (erf_number,)
+        ).fetchone()
+        db.close()
 
-    property_data = dict(prop)
-    property_data['municipality'] = 'nmbm'
+        if not prop:
+            return "Property not found", 404
+
+        property_data = dict(prop)
+        property_data['municipality'] = 'nmbm'
 
     score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
     property_data['feasibility_score']      = score
