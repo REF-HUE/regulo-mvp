@@ -12,44 +12,50 @@ def calculate_feasibility(property_data):
         grade_text (str):     Human-readable grade label
         buildable_area (str): Formatted max floor area string, or None
     """
-    score = 100
+    score = 80
     notes = []
 
     # — Coverage constraint
+    # Bonus only for genuinely high-density coverage (>75%)
+    # Neutral for 50–75% (normal residential range)
+    # Deductions below 50%
     coverage = property_data.get('coverage_numeric', 100)
     if coverage < 40:
         score -= 20
         notes.append("-  Low coverage allowance (under 40%)")
     elif coverage < 50:
         score -= 10
-        notes.append("-  Moderate coverage restriction")
-    else:
-        notes.append("+  Good coverage allowance")
+        notes.append("-  Moderate coverage restriction (under 50%)")
+    elif coverage > 75:
+        score += 5
+        notes.append("+  High coverage allowance (above 75%)")
 
     # — Height constraint
+    # Bonus only for genuinely multi-storey capable (>10m)
+    # Neutral for 6–10m (standard residential heights)
+    # Deductions below 6m
     height = property_data.get('height_numeric', 10)
-    if height <= 1:
+    if height < 3:
         score -= 20
-        notes.append("-  Severe height restriction (single storey only)")
-    elif height <= 2:
+        notes.append("-  Severe height restriction (under 3m)")
+    elif height < 6:
         score -= 10
-        notes.append("-  Height limited to 2 storeys")
-    else:
-        notes.append("+  Favorable height allowance")
+        notes.append("-  Height restriction applies (under 6m)")
+    elif height > 10:
+        score += 5
+        notes.append("+  Multi-storey height allowance")
 
     # — Heritage overlay
+    # Absent = silent (not a positive feature, just normal)
     if property_data.get('heritage_overlay', 0) == 1:
-        score -= 25
-        notes.append("-  Heritage overlay - additional approvals required")
-    else:
-        notes.append("+  No heritage restrictions")
+        score -= 20
+        notes.append("-  Heritage overlay applies (additional approvals required)")
 
     # — Environmental restriction
+    # Absent = silent
     if property_data.get('environmental_restriction', 0) == 1:
-        score -= 20
+        score -= 15
         notes.append("-  Environmental constraints apply")
-    else:
-        notes.append("+  No environmental restrictions")
 
     # — Grade
     if score >= 90:

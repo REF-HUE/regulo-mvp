@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, send_file, redirect, url_for,
 import sqlite3
 import io
 import os
+import re
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -292,6 +293,7 @@ NMBM_SIDE_REAR_CODES = {
     "S14": "3m or half the height (whichever is greater)",
     "S15": "5m or half the height (whichever is greater), max 10m",
     "S16": "Private garages: With consent of abutting owners. Other Buildings: As specified in amendment scheme or as determined by council.",
+    "S19": "1m on one boundary and 1.5m where there are service lines.",
 }
 
 
@@ -730,26 +732,134 @@ def analytics():
 # HELPER — build property_data dict from an erf_registry row
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+# Maps V6 zone_key → expected zone_code — used to detect legacy scheme codes
+_V6_ZONE_CODES = {
+    "Single Residential Zone 1": "SR1",
+    "Single Residential Zone 2": "SR2",
+    "General Residential Zone 1": "GR1",
+    "General Residential Zone 2": "GR2",
+    "General Residential Zone 3": "GR3",
+    "Business Zone 1": "BZ1",
+    "Business Zone 2": "BZ2",
+    "Business Zone 3": "BZ3",
+    "Industrial Zone 1": "IZ1",
+    "Industrial Zone 2": "IZ2",
+    "Mixed Use Zone": "MU",
+    "Community Facilities Zone": "CF",
+    "Government Zone": "GOV",
+    "Open Space Zone 1": "OS1",
+    "Open Space Zone 2": "OS2",
+    "Agricultural Zone": "AG",
+    "Special Zone": "SP",
+    "Transport Zone": "TR",
+}
+
+
+def _decode_coverage(coverage_code, zone):
+    """Decode coverage_code → (display_str, numeric_float)."""
+    if not coverage_code:
+        return zone.get('coverage', 'As per conditions'), zone.get('coverage_numeric', 50.0)
+    if re.match(r'^\d+$', coverage_code):
+        pct = float(coverage_code)
+        return f"{int(pct)}%", pct
+    if re.match(r'^C\d+$', coverage_code):
+        desc = NMBM_COVERAGE_CODES.get(coverage_code, '')
+        if desc:
+            m = re.match(r'^(\d+)', desc)
+            numeric = float(m.group(1)) if m else zone.get('coverage_numeric', 50.0)
+            return desc, numeric
+    return zone.get('coverage', 'As per conditions'), zone.get('coverage_numeric', 50.0)
+
+
+def _decode_height(height_restriction, zone):
+    """Decode height_restriction → (display_str, numeric_float)."""
+    if not height_restriction or height_restriction.strip() == '#':
+        return zone.get('height', 'As per conditions'), zone.get('height_numeric', 10.0)
+    if height_restriction.strip().upper() == '2 FLRS':
+        return '2 storeys (~6m)', 6.0
+    m = re.match(r'^(\d+(?:\.\d+)?)\s*m?$', height_restriction.strip())
+    if m:
+        numeric = float(m.group(1))
+        return f"{numeric:g}m", numeric
+    return height_restriction, zone.get('height_numeric', 10.0)
+
+
+def _decode_setbacks(building_line_code, side_rear_code, zone):
+    """Decode building_line and side_rear codes → setbacks display string."""
+    if not building_line_code:
+        bl_str = None
+    elif re.match(r'^\d+$', building_line_code):
+        bl_str = f"{building_line_code}m"
+    elif building_line_code == 'B11':
+        bl_str = "0m (no building line)"
+    elif building_line_code in NMBM_BUILDING_LINE_CODES:
+        bl_str = NMBM_BUILDING_LINE_CODES[building_line_code].split('.')[0]
+    else:
+        bl_str = building_line_code
+
+    if not side_rear_code:
+        sr_str = None
+    elif side_rear_code == 'S16':
+        sr_str = "As per conditions of approval"
+    elif side_rear_code in NMBM_SIDE_REAR_CODES:
+        sr_str = NMBM_SIDE_REAR_CODES[side_rear_code].split('.')[0]
+    else:
+        sr_str = side_rear_code
+
+    if bl_str and sr_str:
+        return f"Street: {bl_str} | Side/Rear: {sr_str}"
+    if bl_str:
+        return f"Street: {bl_str}"
+    if sr_str:
+        return f"Side/Rear: {sr_str}"
+    return zone.get('setbacks', 'As per conditions')
+
+
 def build_property_from_registry(reg):
     """Build a property_data dict from an erf_registry row dict."""
-    zone_key = reg.get('zone_key', '')
-    zone = ZONE_DATA.get(zone_key, {})
+    zone_key      = reg.get('zone_key', '')
+    zone          = ZONE_DATA.get(zone_key, {})
+    zone_code     = reg.get('zone_code', '')
+    allotment     = reg.get('allotment_area', '')
+
+    # Use legacy scheme display when zone_code is a pre-V6 township code.
+    # V6 codes either match exactly or extend the expected prefix (e.g. SPURP starts with SP).
+    # Assumption: no legacy scheme code shares a prefix with a V6 code (e.g. a hypothetical
+    # "SR1A" from a legacy scheme would be misread as V6 SR1). Revisit if new TPS codes appear.
+    expected_v6 = _V6_ZONE_CODES.get(zone_key, '')
+    is_v6_code = (
+        not zone_code
+        or zone_code == expected_v6
+        or (expected_v6 and zone_code.startswith(expected_v6))
+    )
+    if zone_code and not is_v6_code:
+        zone_display = f"{zone_code} ({allotment.title()} Zoning Scheme)"
+    else:
+        zone_display = zone.get('display', zone_code or zone_key)
+
+    coverage, coverage_numeric = _decode_coverage(reg.get('coverage_code', ''), zone)
+    height, height_numeric     = _decode_height(reg.get('height_restriction', ''), zone)
+    setbacks                   = _decode_setbacks(
+                                     reg.get('building_line_code', ''),
+                                     reg.get('side_rear_code', ''),
+                                     zone)
+
     return {
         'erf_number':               reg['erf_number'],
         'sub_number':               reg.get('sub_number', 0),
         'suburb':                   reg.get('suburb', 'Gqeberha'),
-        'allotment_area':           reg.get('allotment_area', ''),
+        'allotment_area':           allotment,
         'street':                   reg.get('street', ''),
         'city':                     'Gqeberha',
-        'zone':                     zone.get('display', reg.get('zone_code', zone_key)),
-        'zone_code':                reg.get('zone_code', ''),
+        'zone':                     zone_display,
+        'zone_code':                zone_code,
         'land_use':                 zone.get('land_use', 'As per conditions'),
-        'coverage':                 zone.get('coverage', 'As per conditions'),
-        'coverage_numeric':         zone.get('coverage_numeric', 50.0),
+        'coverage':                 coverage,
+        'coverage_numeric':         coverage_numeric,
         'floor_area_ratio':         zone.get('floor_area_ratio', reg.get('fsi', 0)),
-        'height':                   zone.get('height', reg.get('height_restriction', 'As per conditions')),
-        'height_numeric':           zone.get('height_numeric', 10.0),
-        'setbacks':                 zone.get('setbacks', 'As per conditions'),
+        'height':                   height,
+        'height_numeric':           height_numeric,
+        'setbacks':                 setbacks,
         'erf_size':                 int(reg.get('area_m2', 0)) or 0,
         'heritage_overlay':         reg.get('heritage_overlay', 0),
         'environmental_restriction': reg.get('environmental_restriction', 0),
