@@ -253,7 +253,7 @@ NMBM_BUILDING_LINE_CODES = {
     "B1":  "3m from street boundary",
     "B2":  "4.5m from street boundary",
     "B3":  "5m from street boundary",
-    "B4":  "6m from street boundary",
+    "B4":  "5m on existing streets / 2m on new streets. Private garages: Nil for up to 7m, with consent.",
     "B5":  "7.5m from street boundary",
     "B6":  "9m from street boundary",
     "B7":  "10m from street boundary",
@@ -265,7 +265,7 @@ NMBM_BUILDING_LINE_CODES = {
 
 NMBM_COVERAGE_CODES = {
     "C1":  "30% on erf ≤ 2000m2, 20% on erf > 2000m2",
-    "C2":  "40% on erf ≤ 1000m2, 30% on erf > 1000m2",
+    "C2":  "Dwelling houses: 70% on erf ≤ 500m² or 60% on erf 501–1000m² or 50% on erf > 1000m². Other buildings: 33⅓% plus covered parking 16⅔%",
     "C3":  "50% on erf ≤ 500m2, 40% on erf > 500m2",
     "C4":  "50%",
     "C5":  "60% on erf ≤ 500m2, 50% on erf > 500m2",
@@ -282,8 +282,8 @@ NMBM_SIDE_REAR_CODES = {
     "S3":  "3m",
     "S4":  "4.5m",
     "S5":  "5m",
-    "S6":  "6m",
-    "S7":  "7.5m",
+    "S6":  "1.5m abutting Residential 1, Residential 2 & Public Open Space; 3m abutting other zones. Private garages with consent of abutting owners.",
+    "S7":  "1.5m for dwelling houses. Institutional: 5m or half height. Other buildings: 3m or half building height up to 10m.",
     "S8":  "10m",
     "S9":  "0m (no side/rear setback)",
     "S10": "Half the height of the building, min 3m",
@@ -584,6 +584,111 @@ def auto_seed():
             "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
             "source": "NMBM TPS (official)", "created_at": now,
         },
+        # ERF 561 — Colchester (bulk update, Section 8 Zoning Scheme)
+        {
+            "erf_number": "561", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "COLCHESTER", "suburb": "Colchester",
+            "street": "", "area_m2": 0.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES 1",
+            "building_line_code": "#", "coverage_code": "50",
+            "side_rear_code": "#", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "BULK UPDATE — THIS ERF IS ZONED RESIDENTIAL ZONE 1 AS PER THE SECTION 8 ZONING SCHEME",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 1359 — Amsterdamhoek (from TPS document)
+        {
+            "erf_number": "1359", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "AMSTERDAMHOEK", "suburb": "Amsterdamhoek",
+            "street": "", "area_m2": 660.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "B3", "coverage_code": "60",
+            "side_rear_code": "S5", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "1909 (Approved)", "tpd_numbers": "",
+            "notes": "",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 528 — Sydenham/North End (RES3C legacy scheme, closest V6 match: GR3)
+        {
+            "erf_number": "528", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "NORTH END", "suburb": "Sydenham",
+            "street": "6 STEBONHEATH ROAD", "area_m2": 480.0,
+            "zone_key": "General Residential Zone 3", "zone_code": "RES3C",
+            "building_line_code": "B3", "coverage_code": "C2",
+            "side_rear_code": "S7", "height_restriction": "#",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "BO8CAZ44", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "SYDENHAM — 6 STEBONHEATH ROAD. Corner site. Consent 40/94.",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 3406 — Central (from TPS document)
+        {
+            "erf_number": "3406", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "CENTRAL", "suburb": "Central",
+            "street": "10 HALLACK ROAD", "area_m2": 4308.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "B3", "coverage_code": "50",
+            "side_rear_code": "S5", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "BO8CCX513", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "10 HALLACK ROAD",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 3413 — Kabega (from TPS document)
+        {
+            "erf_number": "3413", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "KABEGA", "suburb": "Kabega",
+            "street": "", "area_m2": 328.0,
+            "zone_key": "Single Residential Zone 2", "zone_code": "RES2",
+            "building_line_code": "B4", "coverage_code": "70",
+            "side_rear_code": "S6", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "2471 (Approved)", "tpd_numbers": "2487 (Approved)",
+            "notes": "",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 1910 — Uitenhage (bulk update, all TPS fields undefined "!")
+        {
+            "erf_number": "1910", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "UITENHAGE", "suburb": "Uitenhage",
+            "street": "", "area_m2": 0.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "!", "coverage_code": "!",
+            "side_rear_code": "!", "height_restriction": "!",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "IN THE NEW LAND USE SCHEME THIS ERF IS ZONED SINGLE RESIDENTIAL ZONE 1",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 10898 — Motherwell (from TPS document)
+        {
+            "erf_number": "10898", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "MOTHERWELL", "suburb": "Motherwell",
+            "street": "101 NDEBE STREET", "area_m2": 230.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "1", "coverage_code": "80",
+            "side_rear_code": "S19", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "NU 7, 101 NDEBE STREET, MOTHERWELL ZONING SCHEME, WARD 31. MAP REFERENCE: 999999.",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
     ]
 
     for entry in registry_entries:
@@ -755,13 +860,21 @@ _V6_ZONE_CODES = {
 }
 
 
-def _decode_coverage(coverage_code, zone):
+def _decode_coverage(coverage_code, zone, area_m2=0):
     """Decode coverage_code → (display_str, numeric_float)."""
-    if not coverage_code:
+    if not coverage_code or coverage_code.strip() in ('#', '!'):
         return zone.get('coverage', 'As per conditions'), zone.get('coverage_numeric', 50.0)
     if re.match(r'^\d+$', coverage_code):
         pct = float(coverage_code)
         return f"{int(pct)}%", pct
+    if coverage_code == 'C2':
+        area = float(area_m2 or 0)
+        if area <= 500:
+            return "70% (per C2 for ≤500m²)", 70.0
+        elif area <= 1000:
+            return "60% (per C2 for 501–1000m²)", 60.0
+        else:
+            return "50% (per C2 for >1000m²)", 50.0
     if re.match(r'^C\d+$', coverage_code):
         desc = NMBM_COVERAGE_CODES.get(coverage_code, '')
         if desc:
@@ -773,7 +886,7 @@ def _decode_coverage(coverage_code, zone):
 
 def _decode_height(height_restriction, zone):
     """Decode height_restriction → (display_str, numeric_float)."""
-    if not height_restriction or height_restriction.strip() == '#':
+    if not height_restriction or height_restriction.strip() in ('#', '!'):
         return zone.get('height', 'As per conditions'), zone.get('height_numeric', 10.0)
     if height_restriction.strip().upper() == '2 FLRS':
         return '2 storeys (~6m)', 6.0
@@ -786,7 +899,7 @@ def _decode_height(height_restriction, zone):
 
 def _decode_setbacks(building_line_code, side_rear_code, zone):
     """Decode building_line and side_rear codes → setbacks display string."""
-    if not building_line_code:
+    if not building_line_code or building_line_code.strip() in ('#', '!'):
         bl_str = None
     elif re.match(r'^\d+$', building_line_code):
         bl_str = f"{building_line_code}m"
@@ -797,7 +910,7 @@ def _decode_setbacks(building_line_code, side_rear_code, zone):
     else:
         bl_str = building_line_code
 
-    if not side_rear_code:
+    if not side_rear_code or side_rear_code.strip() in ('#', '!'):
         sr_str = None
     elif side_rear_code == 'S16':
         sr_str = "As per conditions of approval"
@@ -837,7 +950,7 @@ def build_property_from_registry(reg):
     else:
         zone_display = zone.get('display', zone_code or zone_key)
 
-    coverage, coverage_numeric = _decode_coverage(reg.get('coverage_code', ''), zone)
+    coverage, coverage_numeric = _decode_coverage(reg.get('coverage_code', ''), zone, reg.get('area_m2', 0))
     height, height_numeric     = _decode_height(reg.get('height_restriction', ''), zone)
     setbacks                   = _decode_setbacks(
                                      reg.get('building_line_code', ''),
