@@ -84,7 +84,7 @@
                             Floor Factor is from the City of Cape Town Zoning Scheme Regulations
                         </div>
                     {% else %}
-                        <div class="formula">{{ property.erf_size }} m² × {{ property.floor_area_ratio }} (ERF size × Estimated FAR)</div>
+                        <div class="formula">{{ property.buildable_formula }}</div>
                     {% endif %}
                 </div>
             </div>
@@ -113,8 +113,7 @@
                         <p><strong>Floor Factor:</strong> {{ property.floor_area_ratio }}</p>
                         <p class="source-note">Source: City of Cape Town Zoning Scheme Regulations (2012).<br>Floor Factor values are official.</p>
                     {% else %}
-                        <p><strong>Floor Area Ratio (est.):</strong> {{ property.floor_area_ratio }}</p>
-                        <p class="source-note">Source: NMBM Land Use Scheme V6, 2023.<br>FAR is estimated — NMBM does not publish official FAR values.</p>
+                        <p class="source-note">Source: NMBM Land Use Scheme V6, 2023.<br>NMBM regulates by coverage and height, not FAR — buildable area is derived from these.</p>
                     {% endif %}
                 </div>
 
