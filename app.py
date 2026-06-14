@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, send_file, redirect, url_for,
 import sqlite3
 import io
 import os
+import re
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -252,7 +253,7 @@ NMBM_BUILDING_LINE_CODES = {
     "B1":  "3m from street boundary",
     "B2":  "4.5m from street boundary",
     "B3":  "5m from street boundary",
-    "B4":  "6m from street boundary",
+    "B4":  "5m on existing streets / 2m on new streets. Private garages: Nil for up to 7m, with consent.",
     "B5":  "7.5m from street boundary",
     "B6":  "9m from street boundary",
     "B7":  "10m from street boundary",
@@ -264,7 +265,7 @@ NMBM_BUILDING_LINE_CODES = {
 
 NMBM_COVERAGE_CODES = {
     "C1":  "30% on erf ≤ 2000m2, 20% on erf > 2000m2",
-    "C2":  "40% on erf ≤ 1000m2, 30% on erf > 1000m2",
+    "C2":  "Dwelling houses: 70% on erf ≤ 500m² or 60% on erf 501–1000m² or 50% on erf > 1000m². Other buildings: 33⅓% plus covered parking 16⅔%",
     "C3":  "50% on erf ≤ 500m2, 40% on erf > 500m2",
     "C4":  "50%",
     "C5":  "60% on erf ≤ 500m2, 50% on erf > 500m2",
@@ -281,8 +282,8 @@ NMBM_SIDE_REAR_CODES = {
     "S3":  "3m",
     "S4":  "4.5m",
     "S5":  "5m",
-    "S6":  "6m",
-    "S7":  "7.5m",
+    "S6":  "1.5m abutting Residential 1, Residential 2 & Public Open Space; 3m abutting other zones. Private garages with consent of abutting owners.",
+    "S7":  "1.5m for dwelling houses. Institutional: 5m or half height. Other buildings: 3m or half building height up to 10m.",
     "S8":  "10m",
     "S9":  "0m (no side/rear setback)",
     "S10": "Half the height of the building, min 3m",
@@ -292,6 +293,7 @@ NMBM_SIDE_REAR_CODES = {
     "S14": "3m or half the height (whichever is greater)",
     "S15": "5m or half the height (whichever is greater), max 10m",
     "S16": "Private garages: With consent of abutting owners. Other Buildings: As specified in amendment scheme or as determined by council.",
+    "S19": "1m on one boundary and 1.5m where there are service lines.",
 }
 
 
@@ -537,7 +539,7 @@ def auto_seed():
             "height_zone": "", "heritage_overlay": 1, "environmental_restriction": 0,
             "source": "seed", "created_at": now,
         },
-        # ERF 5316 — Bethelsdorp (from TPS document, Luzuko)
+        # ERF 5316 — Bethelsdorp (from TPS document)
         {
             "erf_number": "5316", "sub_number": 0, "municipality": "nmbm",
             "allotment_area": "BETHELSDORP", "suburb": "Bethelsdorp",
@@ -552,7 +554,7 @@ def auto_seed():
             "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
             "source": "NMBM TPS (official)", "created_at": now,
         },
-        # ERF 7536 — Bethelsdorp (from TPS document, Luzuko)
+        # ERF 7536 — Bethelsdorp (from TPS document)
         {
             "erf_number": "7536", "sub_number": 0, "municipality": "nmbm",
             "allotment_area": "BETHELSDORP", "suburb": "Bethelsdorp",
@@ -567,7 +569,7 @@ def auto_seed():
             "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
             "source": "NMBM TPS (official)", "created_at": now,
         },
-        # ERF 12503 — Motherwell (from TPS document, Luzuko)
+        # ERF 12503 — Motherwell (from TPS document)
         {
             "erf_number": "12503", "sub_number": 0, "municipality": "nmbm",
             "allotment_area": "MOTHERWELL", "suburb": "Motherwell",
@@ -579,6 +581,111 @@ def auto_seed():
             "noting_sheet": "", "proclaimed_main_road": "-",
             "tpa_numbers": "", "tpd_numbers": "",
             "notes": "NU 7, 75 MTATI STREET, MOTHERWELL ZONING SCHEME, WARD 31",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 561 — Colchester (bulk update, Section 8 Zoning Scheme)
+        {
+            "erf_number": "561", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "COLCHESTER", "suburb": "Colchester",
+            "street": "", "area_m2": 0.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES 1",
+            "building_line_code": "#", "coverage_code": "50",
+            "side_rear_code": "#", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "BULK UPDATE — THIS ERF IS ZONED RESIDENTIAL ZONE 1 AS PER THE SECTION 8 ZONING SCHEME",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 1359 — Amsterdamhoek (from TPS document)
+        {
+            "erf_number": "1359", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "AMSTERDAMHOEK", "suburb": "Amsterdamhoek",
+            "street": "", "area_m2": 660.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "B3", "coverage_code": "60",
+            "side_rear_code": "S5", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "1909 (Approved)", "tpd_numbers": "",
+            "notes": "",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 528 — Sydenham/North End (RES3C legacy scheme, closest V6 match: GR3)
+        {
+            "erf_number": "528", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "NORTH END", "suburb": "Sydenham",
+            "street": "6 STEBONHEATH ROAD", "area_m2": 480.0,
+            "zone_key": "General Residential Zone 3", "zone_code": "RES3C",
+            "building_line_code": "B3", "coverage_code": "C2",
+            "side_rear_code": "S7", "height_restriction": "#",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "BO8CAZ44", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "SYDENHAM — 6 STEBONHEATH ROAD. Corner site. Consent 40/94.",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 3406 — Central (from TPS document)
+        {
+            "erf_number": "3406", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "CENTRAL", "suburb": "Central",
+            "street": "10 HALLACK ROAD", "area_m2": 4308.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "B3", "coverage_code": "50",
+            "side_rear_code": "S5", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "BO8CCX513", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "10 HALLACK ROAD",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 3413 — Kabega (from TPS document)
+        {
+            "erf_number": "3413", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "KABEGA", "suburb": "Kabega",
+            "street": "", "area_m2": 328.0,
+            "zone_key": "Single Residential Zone 2", "zone_code": "RES2",
+            "building_line_code": "B4", "coverage_code": "70",
+            "side_rear_code": "S6", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "2471 (Approved)", "tpd_numbers": "2487 (Approved)",
+            "notes": "",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 1910 — Uitenhage (bulk update, all TPS fields undefined "!")
+        {
+            "erf_number": "1910", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "UITENHAGE", "suburb": "Uitenhage",
+            "street": "", "area_m2": 0.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "!", "coverage_code": "!",
+            "side_rear_code": "!", "height_restriction": "!",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "IN THE NEW LAND USE SCHEME THIS ERF IS ZONED SINGLE RESIDENTIAL ZONE 1",
+            "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
+            "source": "NMBM TPS (official)", "created_at": now,
+        },
+        # ERF 10898 — Motherwell (from TPS document)
+        {
+            "erf_number": "10898", "sub_number": 0, "municipality": "nmbm",
+            "allotment_area": "MOTHERWELL", "suburb": "Motherwell",
+            "street": "101 NDEBE STREET", "area_m2": 230.0,
+            "zone_key": "Single Residential Zone 1", "zone_code": "RES1",
+            "building_line_code": "1", "coverage_code": "80",
+            "side_rear_code": "S19", "height_restriction": "2 FLRS",
+            "density": "#", "fsi": 0.0,
+            "noting_sheet": "", "proclaimed_main_road": "-",
+            "tpa_numbers": "", "tpd_numbers": "",
+            "notes": "NU 7, 101 NDEBE STREET, MOTHERWELL ZONING SCHEME, WARD 31. MAP REFERENCE: 999999.",
             "height_zone": "", "heritage_overlay": 0, "environmental_restriction": 0,
             "source": "NMBM TPS (official)", "created_at": now,
         },
@@ -727,6 +834,168 @@ def analytics():
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# HELPER — build property_data dict from an erf_registry row
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Maps V6 zone_key → expected zone_code — used to detect legacy scheme codes
+_V6_ZONE_CODES = {
+    "Single Residential Zone 1": "SR1",
+    "Single Residential Zone 2": "SR2",
+    "General Residential Zone 1": "GR1",
+    "General Residential Zone 2": "GR2",
+    "General Residential Zone 3": "GR3",
+    "Business Zone 1": "BZ1",
+    "Business Zone 2": "BZ2",
+    "Business Zone 3": "BZ3",
+    "Industrial Zone 1": "IZ1",
+    "Industrial Zone 2": "IZ2",
+    "Mixed Use Zone": "MU",
+    "Community Facilities Zone": "CF",
+    "Government Zone": "GOV",
+    "Open Space Zone 1": "OS1",
+    "Open Space Zone 2": "OS2",
+    "Agricultural Zone": "AG",
+    "Special Zone": "SP",
+    "Transport Zone": "TR",
+}
+
+
+def _decode_coverage(coverage_code, zone, area_m2=0):
+    """Decode coverage_code → (display_str, numeric_float)."""
+    if not coverage_code or coverage_code.strip() in ('#', '!'):
+        return zone.get('coverage', 'As per conditions'), zone.get('coverage_numeric', 50.0)
+    if re.match(r'^\d+$', coverage_code):
+        pct = float(coverage_code)
+        return f"{int(pct)}%", pct
+    if coverage_code == 'C2':
+        area = float(area_m2 or 0)
+        if area <= 500:
+            return "70% (per C2 for ≤500m²)", 70.0
+        elif area <= 1000:
+            return "60% (per C2 for 501–1000m²)", 60.0
+        else:
+            return "50% (per C2 for >1000m²)", 50.0
+    if re.match(r'^C\d+$', coverage_code):
+        desc = NMBM_COVERAGE_CODES.get(coverage_code, '')
+        if desc:
+            m = re.match(r'^(\d+)', desc)
+            numeric = float(m.group(1)) if m else zone.get('coverage_numeric', 50.0)
+            return desc, numeric
+    return zone.get('coverage', 'As per conditions'), zone.get('coverage_numeric', 50.0)
+
+
+def _decode_height(height_restriction, zone):
+    """Decode height_restriction → (display_str, numeric_float)."""
+    if not height_restriction or height_restriction.strip() in ('#', '!'):
+        return zone.get('height', 'As per conditions'), zone.get('height_numeric', 10.0)
+    if height_restriction.strip().upper() == '2 FLRS':
+        return '2 storeys (~6m)', 6.0
+    m = re.match(r'^(\d+(?:\.\d+)?)\s*m?$', height_restriction.strip())
+    if m:
+        numeric = float(m.group(1))
+        return f"{numeric:g}m", numeric
+    return height_restriction, zone.get('height_numeric', 10.0)
+
+
+def _decode_setbacks(building_line_code, side_rear_code, zone):
+    """Decode building_line and side_rear codes → setbacks display string."""
+    if not building_line_code or building_line_code.strip() in ('#', '!'):
+        bl_str = None
+    elif re.match(r'^\d+$', building_line_code):
+        bl_str = f"{building_line_code}m"
+    elif building_line_code == 'B11':
+        bl_str = "0m (no building line)"
+    elif building_line_code in NMBM_BUILDING_LINE_CODES:
+        bl_str = NMBM_BUILDING_LINE_CODES[building_line_code].split('.')[0]
+    else:
+        bl_str = building_line_code
+
+    if not side_rear_code or side_rear_code.strip() in ('#', '!'):
+        sr_str = None
+    elif side_rear_code == 'S16':
+        sr_str = "As per conditions of approval"
+    elif side_rear_code in NMBM_SIDE_REAR_CODES:
+        sr_str = NMBM_SIDE_REAR_CODES[side_rear_code].split('.')[0]
+    else:
+        sr_str = side_rear_code
+
+    if bl_str and sr_str:
+        return f"Street: {bl_str} | Side/Rear: {sr_str}"
+    if bl_str:
+        return f"Street: {bl_str}"
+    if sr_str:
+        return f"Side/Rear: {sr_str}"
+    return zone.get('setbacks', 'As per conditions')
+
+
+def build_property_from_registry(reg):
+    """Build a property_data dict from an erf_registry row dict."""
+    zone_key      = reg.get('zone_key', '')
+    zone          = ZONE_DATA.get(zone_key, {})
+    zone_code     = reg.get('zone_code', '')
+    allotment     = reg.get('allotment_area', '')
+
+    # Use legacy scheme display when zone_code is a pre-V6 township code.
+    # V6 codes either match exactly or extend the expected prefix (e.g. SPURP starts with SP).
+    # Assumption: no legacy scheme code shares a prefix with a V6 code (e.g. a hypothetical
+    # "SR1A" from a legacy scheme would be misread as V6 SR1). Revisit if new TPS codes appear.
+    expected_v6 = _V6_ZONE_CODES.get(zone_key, '')
+    is_v6_code = (
+        not zone_code
+        or zone_code == expected_v6
+        or (expected_v6 and zone_code.startswith(expected_v6))
+    )
+    if zone_code and not is_v6_code:
+        zone_display = f"{zone_code} ({allotment.title()} Zoning Scheme)"
+    else:
+        zone_display = zone.get('display', zone_code or zone_key)
+
+    coverage, coverage_numeric = _decode_coverage(reg.get('coverage_code', ''), zone, reg.get('area_m2', 0))
+    height, height_numeric     = _decode_height(reg.get('height_restriction', ''), zone)
+    setbacks                   = _decode_setbacks(
+                                     reg.get('building_line_code', ''),
+                                     reg.get('side_rear_code', ''),
+                                     zone)
+
+    return {
+        'erf_number':               reg['erf_number'],
+        'sub_number':               reg.get('sub_number', 0),
+        'suburb':                   reg.get('suburb', 'Gqeberha'),
+        'allotment_area':           allotment,
+        'street':                   reg.get('street', ''),
+        'city':                     'Gqeberha',
+        'zone':                     zone_display,
+        'zone_code':                zone_code,
+        'land_use':                 zone.get('land_use', 'As per conditions'),
+        'coverage':                 coverage,
+        'coverage_numeric':         coverage_numeric,
+        'floor_area_ratio':         zone.get('floor_area_ratio', reg.get('fsi', 0)),
+        'height':                   height,
+        'height_numeric':           height_numeric,
+        'setbacks':                 setbacks,
+        'erf_size':                 int(reg.get('area_m2', 0)) or 0,
+        'heritage_overlay':         reg.get('heritage_overlay', 0),
+        'environmental_restriction': reg.get('environmental_restriction', 0),
+        'notes':                    reg.get('notes', zone.get('notes', '')),
+        'data_source':              'NMBM Land Use Scheme V6 (January 2023)',
+        'is_dynamic':               False,
+        'municipality':             'nmbm',
+        'auto_resolved':            True,
+        'building_line_code':       reg.get('building_line_code', ''),
+        'coverage_code':            reg.get('coverage_code', ''),
+        'side_rear_code':           reg.get('side_rear_code', ''),
+        'height_restriction':       reg.get('height_restriction', ''),
+        'density':                  reg.get('density', ''),
+        'fsi':                      reg.get('fsi', 0),
+        'noting_sheet':             reg.get('noting_sheet', ''),
+        'proclaimed_main_road':     reg.get('proclaimed_main_road', ''),
+        'tpa_numbers':              reg.get('tpa_numbers', ''),
+        'tpd_numbers':              reg.get('tpd_numbers', ''),
+        'registry_source':          reg.get('source', ''),
+    }
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # HOME
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -767,48 +1036,7 @@ def search():
 
         if registry_hit:
             db.close()
-            reg = dict(registry_hit)
-            zone_key = reg.get('zone_key', '')
-            zone = ZONE_DATA.get(zone_key, {})
-
-            # Build property data from registry + zone data
-            property_data = {
-                'erf_number':               reg['erf_number'],
-                'sub_number':               reg.get('sub_number', 0),
-                'suburb':                   reg.get('suburb', 'Gqeberha'),
-                'allotment_area':           reg.get('allotment_area', ''),
-                'street':                   reg.get('street', ''),
-                'city':                     'Gqeberha',
-                'zone':                     zone.get('display', reg.get('zone_code', zone_key)),
-                'zone_code':                reg.get('zone_code', ''),
-                'land_use':                 zone.get('land_use', 'As per conditions'),
-                'coverage':                 zone.get('coverage', 'As per conditions'),
-                'coverage_numeric':         zone.get('coverage_numeric', 50.0),
-                'floor_area_ratio':         zone.get('floor_area_ratio', reg.get('fsi', 0)),
-                'height':                   zone.get('height', reg.get('height_restriction', 'As per conditions')),
-                'height_numeric':           zone.get('height_numeric', 10.0),
-                'setbacks':                 zone.get('setbacks', 'As per conditions'),
-                'erf_size':                 int(reg.get('area_m2', 0)) or 0,
-                'heritage_overlay':         reg.get('heritage_overlay', 0),
-                'environmental_restriction': reg.get('environmental_restriction', 0),
-                'notes':                    reg.get('notes', zone.get('notes', '')),
-                'data_source':              'NMBM Land Use Scheme V6 (January 2023)',
-                'is_dynamic':               False,
-                'municipality':             'nmbm',
-                'auto_resolved':            True,
-                # Town Planning Enquiry fields
-                'building_line_code':       reg.get('building_line_code', ''),
-                'coverage_code':            reg.get('coverage_code', ''),
-                'side_rear_code':           reg.get('side_rear_code', ''),
-                'height_restriction':       reg.get('height_restriction', ''),
-                'density':                  reg.get('density', ''),
-                'fsi':                      reg.get('fsi', 0),
-                'noting_sheet':             reg.get('noting_sheet', ''),
-                'proclaimed_main_road':     reg.get('proclaimed_main_road', ''),
-                'tpa_numbers':              reg.get('tpa_numbers', ''),
-                'tpd_numbers':              reg.get('tpd_numbers', ''),
-                'registry_source':          reg.get('source', ''),
-            }
+            property_data = build_property_from_registry(dict(registry_hit))
 
             score, notes, grade, grade_text, buildable_area = calculate_feasibility(property_data)
             property_data['feasibility_score']      = score
@@ -1630,51 +1858,24 @@ def capetown_contribute():
 def generate_pdf(erf_number):
     db = get_db()
 
-    # Step 1: Check ERF registry (mirrors /search lookup)
-    registry_hit = db.execute(
+    # Check erf_registry first (new ERFs), fall back to legacy properties table
+    reg = db.execute(
         "SELECT * FROM erf_registry WHERE erf_number = ? AND municipality = 'nmbm'",
         (erf_number,)
     ).fetchone()
 
-    if registry_hit:
+    if reg:
         db.close()
-        reg = dict(registry_hit)
-        zone_key = reg.get('zone_key', '')
-        zone = ZONE_DATA.get(zone_key, {})
-
-        property_data = {
-            'erf_number':               reg['erf_number'],
-            'sub_number':               reg.get('sub_number', 0),
-            'suburb':                   reg.get('suburb', 'Gqeberha'),
-            'allotment_area':           reg.get('allotment_area', ''),
-            'street':                   reg.get('street', ''),
-            'city':                     'Gqeberha',
-            'zone':                     zone.get('display', reg.get('zone_code', zone_key)),
-            'zone_code':                reg.get('zone_code', ''),
-            'land_use':                 zone.get('land_use', 'As per conditions'),
-            'coverage':                 zone.get('coverage', 'As per conditions'),
-            'coverage_numeric':         zone.get('coverage_numeric', 50.0),
-            'floor_area_ratio':         zone.get('floor_area_ratio', reg.get('fsi', 0)),
-            'height':                   zone.get('height', reg.get('height_restriction', 'As per conditions')),
-            'height_numeric':           zone.get('height_numeric', 10.0),
-            'setbacks':                 zone.get('setbacks', 'As per conditions'),
-            'erf_size':                 int(reg.get('area_m2', 0)) or 0,
-            'heritage_overlay':         reg.get('heritage_overlay', 0),
-            'environmental_restriction': reg.get('environmental_restriction', 0),
-            'notes':                    reg.get('notes', zone.get('notes', '')),
-            'data_source':              'NMBM Land Use Scheme V6 (January 2023)',
-            'is_dynamic':               False,
-            'municipality':             'nmbm',
-            'auto_resolved':            True,
-        }
+        property_data = build_property_from_registry(dict(reg))
     else:
-        # Step 2: Fallback to legacy properties table
         prop = db.execute(
             "SELECT * FROM properties WHERE erf_number = ?", (erf_number,)
         ).fetchone()
         db.close()
+
         if not prop:
             return "Property not found", 404
+
         property_data = dict(prop)
         property_data['municipality'] = 'nmbm'
 
@@ -1693,6 +1894,7 @@ def generate_pdf(erf_number):
         download_name=f"Regulo_Zoning_Report_ERF{erf_number}.pdf",
         mimetype='application/pdf'
     )
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PDF REPORT — dynamic (NMBM zone lookup + Johannesburg + Cape Town)
